@@ -96,7 +96,7 @@
             font-size: 1.1em;
         }
 
-        .input-group input {
+        .input-group input, .input-group select {
             width: 100%;
             padding: 15px;
             border: 2px solid #e0e0e0;
@@ -105,9 +105,50 @@
             transition: border-color 0.3s;
         }
 
-        .input-group input:focus {
+        .input-group input:focus, .input-group select:focus {
             outline: none;
             border-color: #667eea;
+        }
+
+        .period-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .period-btn {
+            padding: 12px;
+            background: #f0f0f0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            font-size: 0.95em;
+        }
+
+        .period-btn:hover {
+            background: #e0e0e0;
+            border-color: #667eea;
+        }
+
+        .period-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .custom-period {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .custom-period.active {
+            display: block;
         }
 
         .btn {
@@ -265,15 +306,11 @@
             background: #e0e0e0;
         }
 
-        .newsletter-content {
+        .newsletter-preview {
             background: #f8f9fa;
-            padding: 30px;
+            padding: 20px;
             border-radius: 8px;
             border: 1px solid #e0e0e0;
-            white-space: pre-wrap;
-            font-family: 'Georgia', serif;
-            line-height: 1.8;
-            color: #333;
             max-height: 600px;
             overflow-y: auto;
         }
@@ -328,6 +365,10 @@
                 width: 100%;
                 justify-content: center;
             }
+
+            .period-options {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -342,7 +383,7 @@
             </h1>
             <p>
                 Génération automatique de newsletters professionnelles avec <strong>recherche web en temps réel</strong>.
-                <br>Accessible depuis n'importe où, n'importe quel appareil ! 🌍
+                <br>Format HTML enrichi avec images et contenu détaillé ! 🌍
             </p>
             <div id="statusBadge" class="status-badge">Vérification du serveur...</div>
         </div>
@@ -357,6 +398,29 @@
                     placeholder="Ex: Intelligence artificielle, Cybersécurité, Énergies renouvelables..."
                     autocomplete="off"
                 >
+            </div>
+
+            <div class="input-group">
+                <label for="period">Période de recherche</label>
+                
+                <div class="period-options">
+                    <div class="period-btn active" data-period="">📅 Récent (défaut)</div>
+                    <div class="period-btn" data-period="24h">⚡ Dernières 24h</div>
+                    <div class="period-btn" data-period="semaine">📆 Cette semaine</div>
+                    <div class="period-btn" data-period="mois">📊 Ce mois</div>
+                    <div class="period-btn" data-period="année">📈 Cette année</div>
+                    <div class="period-btn" data-period="custom">🎯 Personnalisé</div>
+                </div>
+
+                <div class="custom-period" id="customPeriod">
+                    <label for="customPeriodInput" style="font-size: 0.9em; margin-bottom: 8px;">Entrez la période (ex: "Octobre 2025", "Janvier à Mars 2024")</label>
+                    <input 
+                        type="text" 
+                        id="customPeriodInput" 
+                        placeholder="Ex: Octobre 2025, Q1 2024, Janvier à Mars 2025..."
+                        style="width: 100%;"
+                    >
+                </div>
             </div>
 
             <button class="btn" id="generateBtn">
@@ -384,12 +448,12 @@
             <div class="spinner"></div>
             <strong>Génération en cours...</strong>
             <ul style="margin-top: 10px; margin-left: 30px;">
-                <li>Recherche web sur la thématique (5+ recherches)</li>
+                <li>Recherche web sur la thématique (3+ recherches)</li>
                 <li>Collecte des actualités récentes</li>
                 <li>Analyse et synthèse des informations</li>
-                <li>Génération de la newsletter structurée</li>
+                <li>Génération de la newsletter HTML enrichie</li>
             </ul>
-            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">Cela prend environ 10-20 secondes...</p>
+            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">Cela prend environ 10-15 secondes...</p>
         </div>
 
         <!-- Error -->
@@ -404,14 +468,17 @@
                 </div>
                 <div class="action-buttons">
                     <button class="action-btn" id="copyBtn">
-                        📋 <span>Copier</span>
+                        📋 <span>Copier HTML</span>
                     </button>
                     <button class="action-btn" id="downloadBtn">
                         💾 <span>Télécharger HTML</span>
                     </button>
+                    <button class="action-btn" id="previewBtn">
+                        👁️ <span>Aperçu</span>
+                    </button>
                 </div>
             </div>
-            <div class="newsletter-content" id="newsletterContent"></div>
+            <div class="newsletter-preview" id="newsletterPreview"></div>
         </div>
 
         <!-- Footer -->
@@ -438,14 +505,38 @@
         const loading = document.getElementById('loading');
         const error = document.getElementById('error');
         const result = document.getElementById('result');
-        const newsletterContent = document.getElementById('newsletterContent');
+        const newsletterPreview = document.getElementById('newsletterPreview');
         const copyBtn = document.getElementById('copyBtn');
         const downloadBtn = document.getElementById('downloadBtn');
+        const previewBtn = document.getElementById('previewBtn');
         const statusBadge = document.getElementById('statusBadge');
         const stats = document.getElementById('stats');
+        const customPeriodDiv = document.getElementById('customPeriod');
+        const customPeriodInput = document.getElementById('customPeriodInput');
 
         let currentNewsletter = '';
         let currentTheme = '';
+        let currentPeriod = '';
+        let selectedPeriod = '';
+
+        // Gestion des boutons de période
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Désactiver tous les boutons
+                document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+                // Activer le bouton cliqué
+                btn.classList.add('active');
+                
+                selectedPeriod = btn.dataset.period;
+                
+                // Afficher/cacher le champ personnalisé
+                if (selectedPeriod === 'custom') {
+                    customPeriodDiv.classList.add('active');
+                } else {
+                    customPeriodDiv.classList.remove('active');
+                }
+            });
+        });
 
         // Vérifier le statut du serveur
         async function checkServerStatus() {
@@ -491,6 +582,16 @@
                 return;
             }
 
+            // Déterminer la période
+            let period = selectedPeriod;
+            if (period === 'custom') {
+                period = customPeriodInput.value.trim();
+                if (!period) {
+                    showError('Veuillez entrer une période personnalisée');
+                    return;
+                }
+            }
+
             // Reset UI
             error.classList.remove('active');
             result.classList.remove('active');
@@ -505,7 +606,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ theme })
+                    body: JSON.stringify({ theme, period })
                 });
 
                 const data = await response.json();
@@ -516,7 +617,10 @@
 
                 currentNewsletter = data.newsletter;
                 currentTheme = data.theme;
-                newsletterContent.textContent = currentNewsletter;
+                currentPeriod = data.period;
+                
+                // Afficher l'aperçu HTML
+                newsletterPreview.innerHTML = currentNewsletter;
                 
                 // Afficher les statistiques
                 stats.innerHTML = `
@@ -525,6 +629,9 @@
                     </div>
                     <div class="stat-item">
                         <strong>${data.searchesPerformed}</strong> recherches effectuées
+                    </div>
+                    <div class="stat-item">
+                        <strong>Format HTML</strong> enrichi
                     </div>
                 `;
                 
@@ -548,7 +655,7 @@
             }, 5000);
         }
 
-        // Copier dans le presse-papiers
+        // Copier le HTML dans le presse-papiers
         copyBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(currentNewsletter).then(() => {
                 const originalHTML = copyBtn.innerHTML;
@@ -561,50 +668,21 @@
 
         // Télécharger en HTML
         downloadBtn.addEventListener('click', () => {
-            const htmlContent = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Newsletter - ${currentTheme}</title>
-    <style>
-        body {
-            font-family: Georgia, serif;
-            line-height: 1.8;
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 20px;
-            color: #333;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 { color: #667eea; border-bottom: 3px solid #667eea; padding-bottom: 10px; }
-        h2 { color: #764ba2; margin-top: 30px; }
-        h3 { color: #333; }
-        a { color: #667eea; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        hr { border: none; border-top: 1px solid #e0e0e0; margin: 30px 0; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <pre style="white-space: pre-wrap; font-family: Georgia, serif;">${currentNewsletter}</pre>
-    </div>
-</body>
-</html>`;
-
-            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const blob = new Blob([currentNewsletter], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `newsletter-${currentTheme.replace(/\s+/g, '-')}-${Date.now()}.html`;
+            const filename = `newsletter-${currentTheme.replace(/\s+/g, '-')}-${currentPeriod.replace(/\s+/g, '-')}-${Date.now()}.html`;
+            a.download = filename;
             a.click();
             URL.revokeObjectURL(url);
+        });
+
+        // Ouvrir l'aperçu dans une nouvelle fenêtre
+        previewBtn.addEventListener('click', () => {
+            const newWindow = window.open('', '_blank');
+            newWindow.document.write(currentNewsletter);
+            newWindow.document.close();
         });
     </script>
 </body>
