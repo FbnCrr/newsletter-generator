@@ -286,6 +286,7 @@
         .action-buttons {
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         .action-btn {
@@ -304,6 +305,15 @@
 
         .action-btn:hover {
             background: #e0e0e0;
+        }
+
+        .action-btn.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .action-btn.primary:hover {
+            opacity: 0.9;
         }
 
         .newsletter-preview {
@@ -344,6 +354,67 @@
         .footer a {
             color: white;
             text-decoration: underline;
+        }
+
+        /* Modal pour l'envoi d'email */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #667eea;
+            font-size: 1.5em;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
         }
 
         @media (max-width: 768px) {
@@ -395,7 +466,7 @@
                 <input 
                     type="text" 
                     id="theme" 
-                    placeholder="Ex: Intelligence artificielle, Cybersécurité, Énergies renouvelables..."
+                    placeholder="Ex: Intelligence artificielle, tendances réseaux sociaux, innovations spatial..."
                     autocomplete="off"
                 >
             </div>
@@ -432,12 +503,12 @@
                 <h3>💡 EXEMPLES DE THÉMATIQUES</h3>
                 <div class="example-tags">
                     <span class="example-tag">Intelligence artificielle</span>
+                    <span class="example-tag">Tendances réseaux sociaux</span>
+                    <span class="example-tag">Innovations spatial</span>
                     <span class="example-tag">Cybersécurité</span>
                     <span class="example-tag">Énergies renouvelables</span>
                     <span class="example-tag">Blockchain</span>
-                    <span class="example-tag">Spatial</span>
-                    <span class="example-tag">Biotechnologie</span>
-                    <span class="example-tag">Quantique</span>
+                    <span class="example-tag">Tendances design graphique</span>
                     <span class="example-tag">Robotique</span>
                 </div>
             </div>
@@ -448,12 +519,13 @@
             <div class="spinner"></div>
             <strong>Génération en cours...</strong>
             <ul style="margin-top: 10px; margin-left: 30px;">
-                <li>Recherche web sur la thématique (3+ recherches)</li>
+                <li>Analyse de l'intention de recherche</li>
+                <li>Recherche web intelligente (4+ recherches)</li>
                 <li>Collecte des actualités récentes</li>
-                <li>Analyse et synthèse des informations</li>
-                <li>Génération de la newsletter HTML enrichie</li>
+                <li>Génération des résumés IA (si disponible)</li>
+                <li>Création de la newsletter HTML enrichie</li>
             </ul>
-            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">Cela prend environ 10-15 secondes...</p>
+            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">Cela prend environ 15-20 secondes...</p>
         </div>
 
         <!-- Error -->
@@ -467,11 +539,14 @@
                     <div class="stats" id="stats"></div>
                 </div>
                 <div class="action-buttons">
+                    <button class="action-btn primary" id="sendEmailBtn">
+                        📧 <span>Envoyer par Email</span>
+                    </button>
                     <button class="action-btn" id="copyBtn">
                         📋 <span>Copier HTML</span>
                     </button>
                     <button class="action-btn" id="downloadBtn">
-                        💾 <span>Télécharger HTML</span>
+                        💾 <span>Télécharger</span>
                     </button>
                     <button class="action-btn" id="previewBtn">
                         👁️ <span>Aperçu</span>
@@ -481,11 +556,50 @@
             <div class="newsletter-preview" id="newsletterPreview"></div>
         </div>
 
+        <!-- Modal Email -->
+        <div class="modal" id="emailModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>📧 Envoyer par Email</h3>
+                    <button class="modal-close" id="modalClose">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group">
+                        <label for="emailTo">Destinataire(s)</label>
+                        <input 
+                            type="email" 
+                            id="emailTo" 
+                            placeholder="email@exemple.com (séparés par des virgules)"
+                            style="width: 100%;"
+                        >
+                    </div>
+                    <div class="input-group">
+                        <label for="emailSubject">Objet</label>
+                        <input 
+                            type="text" 
+                            id="emailSubject" 
+                            placeholder="Newsletter - [Thématique]"
+                            style="width: 100%;"
+                        >
+                    </div>
+                    <p style="color: #666; font-size: 0.9em; margin-top: 15px;">
+                        💡 Nous allons ouvrir Gmail avec votre newsletter. Vous pourrez ajuster et envoyer.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button class="action-btn" id="cancelEmailBtn">Annuler</button>
+                    <button class="action-btn primary" id="confirmEmailBtn">
+                        ✉️ Ouvrir Gmail
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Footer -->
         <div class="footer">
-            <p>Propulsé par <strong>Brave Search API</strong> • Recherche web en temps réel</p>
+            <p>Propulsé par <strong>Brave Search API</strong> + <strong>Claude AI</strong> (optionnel)</p>
             <p style="margin-top: 10px; font-size: 0.85em;">
-                Générez jusqu'à 2000 newsletters/mois gratuitement
+                Recherche intelligente en temps réel • Résumés IA de qualité
             </p>
         </div>
     </div>
@@ -509,10 +623,19 @@
         const copyBtn = document.getElementById('copyBtn');
         const downloadBtn = document.getElementById('downloadBtn');
         const previewBtn = document.getElementById('previewBtn');
+        const sendEmailBtn = document.getElementById('sendEmailBtn');
         const statusBadge = document.getElementById('statusBadge');
         const stats = document.getElementById('stats');
         const customPeriodDiv = document.getElementById('customPeriod');
         const customPeriodInput = document.getElementById('customPeriodInput');
+        
+        // Modal
+        const emailModal = document.getElementById('emailModal');
+        const modalClose = document.getElementById('modalClose');
+        const emailTo = document.getElementById('emailTo');
+        const emailSubject = document.getElementById('emailSubject');
+        const cancelEmailBtn = document.getElementById('cancelEmailBtn');
+        const confirmEmailBtn = document.getElementById('confirmEmailBtn');
 
         let currentNewsletter = '';
         let currentTheme = '';
@@ -522,14 +645,10 @@
         // Gestion des boutons de période
         document.querySelectorAll('.period-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                // Désactiver tous les boutons
                 document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-                // Activer le bouton cliqué
                 btn.classList.add('active');
-                
                 selectedPeriod = btn.dataset.period;
                 
-                // Afficher/cacher le champ personnalisé
                 if (selectedPeriod === 'custom') {
                     customPeriodDiv.classList.add('active');
                 } else {
@@ -554,7 +673,6 @@
             } catch (err) {
                 statusBadge.className = 'status-badge status-error';
                 statusBadge.textContent = '❌ Serveur non disponible';
-                console.error('Erreur health check:', err);
             }
         }
 
@@ -582,7 +700,6 @@
                 return;
             }
 
-            // Déterminer la période
             let period = selectedPeriod;
             if (period === 'custom') {
                 period = customPeriodInput.value.trim();
@@ -592,7 +709,6 @@
                 }
             }
 
-            // Reset UI
             error.classList.remove('active');
             result.classList.remove('active');
             loading.classList.add('active');
@@ -619,20 +735,22 @@
                 currentTheme = data.theme;
                 currentPeriod = data.period;
                 
-                // Afficher l'aperçu HTML
                 newsletterPreview.innerHTML = currentNewsletter;
                 
-                // Afficher les statistiques
+                // Pré-remplir l'objet de l'email
+                emailSubject.value = `Newsletter - ${currentTheme}${currentPeriod ? ' - ' + currentPeriod : ''}`;
+                
                 stats.innerHTML = `
                     <div class="stat-item">
                         <strong>${data.resultsCount}</strong> sources analysées
                     </div>
                     <div class="stat-item">
-                        <strong>${data.searchesPerformed}</strong> recherches effectuées
+                        <strong>${data.newsCount || 0}</strong> actualités
                     </div>
                     <div class="stat-item">
-                        <strong>Format HTML</strong> enrichi
+                        <strong>Intention:</strong> ${data.intentType || 'général'}
                     </div>
+                    ${data.aiSummariesUsed ? '<div class="stat-item"><strong>✨ Résumés IA</strong></div>' : ''}
                 `;
                 
                 result.classList.add('active');
@@ -655,7 +773,7 @@
             }, 5000);
         }
 
-        // Copier le HTML dans le presse-papiers
+        // Copier le HTML
         copyBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(currentNewsletter).then(() => {
                 const originalHTML = copyBtn.innerHTML;
@@ -666,7 +784,7 @@
             });
         });
 
-        // Télécharger en HTML
+        // Télécharger
         downloadBtn.addEventListener('click', () => {
             const blob = new Blob([currentNewsletter], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
@@ -678,11 +796,60 @@
             URL.revokeObjectURL(url);
         });
 
-        // Ouvrir l'aperçu dans une nouvelle fenêtre
+        // Aperçu
         previewBtn.addEventListener('click', () => {
             const newWindow = window.open('', '_blank');
             newWindow.document.write(currentNewsletter);
             newWindow.document.close();
+        });
+
+        // Envoyer par email - Ouvrir modal
+        sendEmailBtn.addEventListener('click', () => {
+            emailModal.classList.add('active');
+        });
+
+        // Fermer modal
+        modalClose.addEventListener('click', () => {
+            emailModal.classList.remove('active');
+        });
+
+        cancelEmailBtn.addEventListener('click', () => {
+            emailModal.classList.remove('active');
+        });
+
+        // Fermer modal en cliquant en dehors
+        emailModal.addEventListener('click', (e) => {
+            if (e.target === emailModal) {
+                emailModal.classList.remove('active');
+            }
+        });
+
+        // Confirmer et ouvrir Gmail
+        confirmEmailBtn.addEventListener('click', () => {
+            const to = emailTo.value.trim();
+            const subject = emailSubject.value.trim() || `Newsletter - ${currentTheme}`;
+            
+            // Encoder le HTML pour Gmail
+            const body = encodeURIComponent(currentNewsletter);
+            
+            // Construire l'URL Gmail
+            let gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1';
+            gmailUrl += `&su=${encodeURIComponent(subject)}`;
+            
+            if (to) {
+                gmailUrl += `&to=${encodeURIComponent(to)}`;
+            }
+            
+            // Gmail ne supporte pas directement le HTML dans l'URL
+            // On va copier dans le presse-papiers et informer l'utilisateur
+            navigator.clipboard.writeText(currentNewsletter).then(() => {
+                // Ouvrir Gmail
+                window.open(gmailUrl, '_blank');
+                
+                // Informer l'utilisateur
+                emailModal.classList.remove('active');
+                alert('✅ Gmail ouvert !\n\n📋 Le HTML de la newsletter a été copié dans votre presse-papiers.\n\n💡 Dans Gmail:\n1. Cliquez sur le bouton "Compose" (si pas déjà ouvert)\n2. Collez (Ctrl+V) le contenu dans le corps de l\'email\n3. Le format HTML sera préservé !\n4. Ajoutez ou modifiez les destinataires si besoin\n5. Envoyez !');
+            });
         });
     </script>
 </body>
