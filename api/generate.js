@@ -149,9 +149,16 @@ export default async function handler(req, res) {
     ];
 
     console.log('📡 Lancement de 5 recherches web...');
-    const searchPromises = searches.map(query => searchWeb(BRAVE_API_KEY, query, 5));
-    const searchResults = await Promise.all(searchPromises);
+// Faire les recherches une par une avec un délai
+const searchResults = [];
+for (const query of searches) {
+  const result = await searchWeb(BRAVE_API_KEY, query, 5);
+  searchResults.push(result);
+  // Attendre 1 seconde entre chaque recherche
+  await new Promise(resolve => setTimeout(resolve, 1000));
+}
 
+    
     // ÉTAPE 2: Recherche d'actualités spécifiques
     console.log('📰 Recherche d\'actualités récentes...');
     const newsResults = await searchNews(BRAVE_API_KEY, theme, 10);
