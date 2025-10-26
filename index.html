@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Newsletter - Recherche Web en Temps Réel</title>
+    <meta name="description" content="Générez automatiquement des newsletters professionnelles avec recherche web en temps réel">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-top: 15px;
+            font-weight: 500;
+        }
+
+        .status-ok {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .cloud-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.7em;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .input-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1.1em;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .examples {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .examples h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        .example-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .example-tag {
+            background: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            border: 1px solid #e0e0e0;
+            transition: all 0.2s;
+        }
+
+        .example-tag:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .loading {
+            display: none;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            display: none;
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .result-section {
+            display: none;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .result-section.active {
+            display: block;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .result-header h2 {
+            color: #333;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            background: #f0f0f0;
+            color: #333;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .newsletter-content {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            white-space: pre-wrap;
+            font-family: 'Georgia', serif;
+            line-height: 1.8;
+            color: #333;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            background: #e8f4f8;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        .stat-item strong {
+            color: #667eea;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            padding: 20px;
+            font-size: 0.9em;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .result-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .action-buttons {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .action-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                <span>📰</span>
+                Générateur de Newsletter
+                <span class="cloud-badge">☁️ CLOUD</span>
+            </h1>
+            <p>
+                Génération automatique de newsletters professionnelles avec <strong>recherche web en temps réel</strong>.
+                <br>Accessible depuis n'importe où, n'importe quel appareil ! 🌍
+            </p>
+            <div id="statusBadge" class="status-badge">Vérification du serveur...</div>
+        </div>
+
+        <!-- Input Section -->
+        <div class="input-section">
+            <div class="input-group">
+                <label for="theme">Thématique de la newsletter</label>
+                <input 
+                    type="text" 
+                    id="theme" 
+                    placeholder="Ex: Intelligence artificielle, Cybersécurité, Énergies renouvelables..."
+                    autocomplete="off"
+                >
+            </div>
+
+            <button class="btn" id="generateBtn">
+                <span id="btnIcon">🚀</span>
+                <span id="btnText">Générer la Newsletter</span>
+            </button>
+
+            <div class="examples">
+                <h3>💡 EXEMPLES DE THÉMATIQUES</h3>
+                <div class="example-tags">
+                    <span class="example-tag">Intelligence artificielle</span>
+                    <span class="example-tag">Cybersécurité</span>
+                    <span class="example-tag">Énergies renouvelables</span>
+                    <span class="example-tag">Blockchain</span>
+                    <span class="example-tag">Spatial</span>
+                    <span class="example-tag">Biotechnologie</span>
+                    <span class="example-tag">Quantique</span>
+                    <span class="example-tag">Robotique</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <strong>Génération en cours...</strong>
+            <ul style="margin-top: 10px; margin-left: 30px;">
+                <li>Recherche web sur la thématique (5+ recherches)</li>
+                <li>Collecte des actualités récentes</li>
+                <li>Analyse et synthèse des informations</li>
+                <li>Génération de la newsletter structurée</li>
+            </ul>
+            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">Cela prend environ 10-20 secondes...</p>
+        </div>
+
+        <!-- Error -->
+        <div class="error" id="error"></div>
+
+        <!-- Result Section -->
+        <div class="result-section" id="result">
+            <div class="result-header">
+                <div>
+                    <h2>📄 Newsletter générée</h2>
+                    <div class="stats" id="stats"></div>
+                </div>
+                <div class="action-buttons">
+                    <button class="action-btn" id="copyBtn">
+                        📋 <span>Copier</span>
+                    </button>
+                    <button class="action-btn" id="downloadBtn">
+                        💾 <span>Télécharger HTML</span>
+                    </button>
+                </div>
+            </div>
+            <div class="newsletter-content" id="newsletterContent"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Propulsé par <strong>Brave Search API</strong> • Recherche web en temps réel</p>
+            <p style="margin-top: 10px; font-size: 0.85em;">
+                Générez jusqu'à 2000 newsletters/mois gratuitement
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Détection automatique de l'URL de l'API
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000'
+            : window.location.origin;
+        
+        const API_URL = `${API_BASE}/api`;
+        
+        const themeInput = document.getElementById('theme');
+        const generateBtn = document.getElementById('generateBtn');
+        const btnIcon = document.getElementById('btnIcon');
+        const btnText = document.getElementById('btnText');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const result = document.getElementById('result');
+        const newsletterContent = document.getElementById('newsletterContent');
+        const copyBtn = document.getElementById('copyBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const statusBadge = document.getElementById('statusBadge');
+        const stats = document.getElementById('stats');
+
+        let currentNewsletter = '';
+        let currentTheme = '';
+
+        // Vérifier le statut du serveur
+        async function checkServerStatus() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                
+                if (data.apiConfigured) {
+                    statusBadge.className = 'status-badge status-ok';
+                    statusBadge.textContent = '✅ Serveur prêt - API configurée';
+                } else {
+                    statusBadge.className = 'status-badge status-error';
+                    statusBadge.textContent = '⚠️ API Brave non configurée';
+                }
+            } catch (err) {
+                statusBadge.className = 'status-badge status-error';
+                statusBadge.textContent = '❌ Serveur non disponible';
+                console.error('Erreur health check:', err);
+            }
+        }
+
+        checkServerStatus();
+
+        // Gestion des exemples
+        document.querySelectorAll('.example-tag').forEach(tag => {
+            tag.addEventListener('click', () => {
+                themeInput.value = tag.textContent;
+                themeInput.focus();
+            });
+        });
+
+        // Génération de la newsletter
+        generateBtn.addEventListener('click', generateNewsletter);
+        themeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') generateNewsletter();
+        });
+
+        async function generateNewsletter() {
+            const theme = themeInput.value.trim();
+            
+            if (!theme) {
+                showError('Veuillez entrer une thématique');
+                return;
+            }
+
+            // Reset UI
+            error.classList.remove('active');
+            result.classList.remove('active');
+            loading.classList.add('active');
+            generateBtn.disabled = true;
+            btnIcon.textContent = '⏳';
+            btnText.textContent = 'Recherche en cours...';
+
+            try {
+                const response = await fetch(`${API_URL}/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ theme })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erreur lors de la génération');
+                }
+
+                currentNewsletter = data.newsletter;
+                currentTheme = data.theme;
+                newsletterContent.textContent = currentNewsletter;
+                
+                // Afficher les statistiques
+                stats.innerHTML = `
+                    <div class="stat-item">
+                        <strong>${data.resultsCount}</strong> sources analysées
+                    </div>
+                    <div class="stat-item">
+                        <strong>${data.searchesPerformed}</strong> recherches effectuées
+                    </div>
+                `;
+                
+                result.classList.add('active');
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                loading.classList.remove('active');
+                generateBtn.disabled = false;
+                btnIcon.textContent = '🚀';
+                btnText.textContent = 'Générer la Newsletter';
+            }
+        }
+
+        function showError(message) {
+            error.textContent = '❌ ' + message;
+            error.classList.add('active');
+            setTimeout(() => {
+                error.classList.remove('active');
+            }, 5000);
+        }
+
+        // Copier dans le presse-papiers
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(currentNewsletter).then(() => {
+                const originalHTML = copyBtn.innerHTML;
+                copyBtn.innerHTML = '✅ <span>Copié !</span>';
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalHTML;
+                }, 2000);
+            });
+        });
+
+        // Télécharger en HTML
+        downloadBtn.addEventListener('click', () => {
+            const htmlContent = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newsletter - ${currentTheme}</title>
+    <style>
+        body {
+            font-family: Georgia, serif;
+            line-height: 1.8;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #667eea; border-bottom: 3px solid #667eea; padding-bottom: 10px; }
+        h2 { color: #764ba2; margin-top: 30px; }
+        h3 { color: #333; }
+        a { color: #667eea; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        hr { border: none; border-top: 1px solid #e0e0e0; margin: 30px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <pre style="white-space: pre-wrap; font-family: Georgia, serif;">${currentNewsletter}</pre>
+    </div>
+</body>
+</html>`;
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `newsletter-${currentTheme.replace(/\s+/g, '-')}-${Date.now()}.html`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    </script>
+</body>
+</html>
