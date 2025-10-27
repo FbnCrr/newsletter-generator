@@ -271,18 +271,20 @@ function generateNewsletterHTML(theme, enrichedNews, enrichedResults, period, in
           </tr>`;
 
   // ACTUALITÉS PRINCIPALES
-  const articlesToShow = enrichedNews.length > 0 ? enrichedNews : enrichedResults.slice(0, 5);
-  
+  const articlesToShow = enrichedNews.length > 0 ? enrichedNews : enrichedResults.slice(0, 6);
+
   articlesToShow.slice(0, 6).forEach((article, index) => {
     const emoji = index === 0 ? '🔥' : index === 1 ? '⚡' : index === 2 ? '📰' : '📌';
     const imageUrl = article.thumbnail || `https://via.placeholder.com/540x300/2563eb/ffffff?text=${encodeURIComponent(theme)}`;
-    
+
     html += `
           <!-- ACTUALITÉ ${index + 1} -->
           <tr>
             <td style="padding: 0 40px 25px 40px;">
-              <h2 style="margin: 0 0 15px 0; color: #1e40af; font-size: 20px; border-left: 4px solid #2563eb; padding-left: 15px;">
-                ${emoji} ${article.title}
+              <h2 style="margin: 0 0 15px 0; border-left: 4px solid #2563eb; padding-left: 15px;">
+                <a href="${article.url}" style="color: #1e40af; text-decoration: none; font-size: 20px; display: block;" target="_blank">
+                  ${emoji} ${article.title}
+                </a>
               </h2>
               <img src="${imageUrl}" alt="${article.title}" style="width: 100%; max-width: 540px; height: auto; border-radius: 8px; margin-bottom: 15px; display: block;" onerror="this.src='https://via.placeholder.com/540x300/2563eb/ffffff?text=Image+non+disponible'" />
               <p style="margin: 0 0 12px 0; color: #374151; font-size: 15px; line-height: 1.6;">
@@ -296,36 +298,13 @@ function generateNewsletterHTML(theme, enrichedNews, enrichedResults, period, in
           </tr>`;
   });
 
-  // SECTION ANALYSE
+  // POUR ALLER PLUS LOIN
   html += `
-          <!-- ANALYSE ET TENDANCES -->
+          <!-- POUR ALLER PLUS LOIN -->
           <tr>
             <td style="padding: 0 40px 25px 40px;">
               <h2 style="margin: 0 0 15px 0; color: #1e40af; font-size: 20px; border-left: 4px solid #2563eb; padding-left: 15px;">
-                💡 Analyse et Tendances
-              </h2>
-              <p style="margin: 0 0 12px 0; color: #374151; font-size: 15px; line-height: 1.6;">
-                ${intentType === 'trends'
-                  ? `Les recherches sur les tendances actuelles de ${theme} révèlent:`
-                  : `Les recherches effectuées sur <strong>${theme}</strong> révèlent plusieurs tendances importantes :`
-                }
-              </p>
-              <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 15px; line-height: 1.8;">
-                <li>L'actualité autour de ce sujet est particulièrement dynamique avec <strong>${enrichedResults.length} sources</strong> récentes identifiées</li>
-                <li>Les articles couvrent différents angles : <strong>innovations technologiques</strong>, <strong>analyses de marché</strong>, et <strong>perspectives d'experts</strong></li>
-                <li>Les sources incluent des médias spécialisés, des sites d'information généraliste et des publications professionnelles</li>
-                <li>Cette diversité de points de vue permet une <strong>compréhension approfondie</strong> des enjeux actuels</li>
-              </ul>
-            </td>
-          </tr>`;
-
-  // RESSOURCES COMPLÉMENTAIRES
-  html += `
-          <!-- RESSOURCES COMPLÉMENTAIRES -->
-          <tr>
-            <td style="padding: 0 40px 25px 40px;">
-              <h2 style="margin: 0 0 15px 0; color: #1e40af; font-size: 20px; border-left: 4px solid #2563eb; padding-left: 15px;">
-                🔗 Ressources Complémentaires
+                🔗 Pour aller plus loin
               </h2>
               <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 14px; line-height: 1.8;">`;
 

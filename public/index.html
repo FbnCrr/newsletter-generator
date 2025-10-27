@@ -825,31 +825,51 @@
         });
 
         // Confirmer et ouvrir Gmail
-        confirmEmailBtn.addEventListener('click', () => {
+        confirmEmailBtn.addEventListener('click', async () => {
             const to = emailTo.value.trim();
             const subject = emailSubject.value.trim() || `Newsletter - ${currentTheme}`;
-            
-            // Encoder le HTML pour Gmail
-            const body = encodeURIComponent(currentNewsletter);
-            
-            // Construire l'URL Gmail
-            let gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1';
-            gmailUrl += `&su=${encodeURIComponent(subject)}`;
-            
-            if (to) {
-                gmailUrl += `&to=${encodeURIComponent(to)}`;
-            }
-            
-            // Gmail ne supporte pas directement le HTML dans l'URL
-            // On va copier dans le presse-papiers et informer l'utilisateur
-            navigator.clipboard.writeText(currentNewsletter).then(() => {
+
+            // Copier le contenu RENDU (pas le code HTML brut)
+            try {
+                // Créer une plage de sélection sur l'aperçu
+                const range = document.createRange();
+                range.selectNodeContents(newsletterPreview);
+
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+
+                // Copier avec la méthode moderne
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/html': new Blob([currentNewsletter], { type: 'text/html' }),
+                        'text/plain': new Blob([newsletterPreview.innerText], { type: 'text/plain' })
+                    })
+                ]);
+
+                // Désélectionner
+                selection.removeAllRanges();
+
+                // Construire l'URL Gmail
+                let gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1';
+                gmailUrl += `&su=${encodeURIComponent(subject)}`;
+
+                if (to) {
+                    gmailUrl += `&to=${encodeURIComponent(to)}`;
+                }
+
                 // Ouvrir Gmail
                 window.open(gmailUrl, '_blank');
-                
+
                 // Informer l'utilisateur
                 emailModal.classList.remove('active');
-                alert('✅ Gmail ouvert !\n\n📋 Le HTML de la newsletter a été copié dans votre presse-papiers.\n\n💡 Dans Gmail:\n1. Cliquez sur le bouton "Compose" (si pas déjà ouvert)\n2. Collez (Ctrl+V) le contenu dans le corps de l\'email\n3. Le format HTML sera préservé !\n4. Ajoutez ou modifiez les destinataires si besoin\n5. Envoyez !');
-            });
+                alert('✅ Newsletter copiée et Gmail ouvert !\n\n📋 Le contenu formaté a été copié dans votre presse-papiers.\n\n💡 Dans Gmail:\n1. Cliquez dans le corps de l\'email\n2. Collez (Ctrl+V ou Cmd+V)\n3. Le format sera préservé automatiquement !\n4. Ajoutez ou modifiez les destinataires si besoin\n5. Envoyez !');
+            } catch (err) {
+                console.error('Erreur copie:', err);
+                // Fallback : copier le code HTML brut
+                await navigator.clipboard.writeText(currentNewsletter);
+                alert('⚠️ Newsletter copiée (mode texte)\n\nPour un meilleur résultat :\n1. Utilisez le bouton "Aperçu"\n2. Sélectionnez tout (Ctrl+A)\n3. Copiez (Ctrl+C)\n4. Collez dans Gmail');
+            }
         });
     </script>
 </body>
