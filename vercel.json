@@ -9,6 +9,10 @@
       "destination": "/api/generate.js"
     },
     {
+      "source": "/api/translate",
+      "destination": "/api/translate.js"
+    },
+    {
       "source": "/(.*)",
       "destination": "/public/index.html"
     }

@@ -380,7 +380,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { theme, period } = req.body;
+  const { theme, period, preferredSources = [] } = req.body;
 
   if (!theme) {
     return res.status(400).json({ error: 'Thématique requise' });
@@ -418,6 +418,23 @@ export default async function handler(req, res) {
     // RECHERCHE D'ACTUALITÉS SPÉCIFIQUE
     const newsResults = await searchNews(BRAVE_API_KEY, `${mainTopic} actualités`, 10, freshness);
     allResults = allResults.concat(newsResults);
+
+    // RECHERCHES CIBLÉES SUR SITES PRÉFÉRÉS
+    if (preferredSources && preferredSources.length > 0) {
+      console.log(`🎯 Recherche sur ${preferredSources.length} sites préférés...`);
+
+      for (const source of preferredSources.slice(0, 5)) { // Limiter à 5 sites max
+        const siteQuery = `site:${source} ${mainTopic}`;
+        console.log(`  → Recherche sur ${source}...`);
+
+        const siteResults = await searchWeb(BRAVE_API_KEY, siteQuery, 5, freshness);
+        allResults = allResults.concat(siteResults);
+
+        await new Promise(resolve => setTimeout(resolve, 1200)); // Délai anti-rate limit
+      }
+
+      console.log(`✅ Recherches sur sites préférés terminées`);
+    }
 
     // DÉDUPLIQUER
     const uniqueResults = Array.from(
