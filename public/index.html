@@ -1202,46 +1202,74 @@
             const doc = parser.parseFromString(html, 'text/html');
 
             const descriptions = [];
-            const paragraphs = doc.querySelectorAll('p[style*="color: #374151"]');
+            const paragraphs = doc.querySelectorAll('p');
 
             paragraphs.forEach(p => {
+                const style = p.getAttribute('style') || '';
                 const text = p.textContent.trim();
-                if (text && text.length > 20 && !text.startsWith('📅') && !text.startsWith('📎')) {
+
+                // Chercher les paragraphes de description (color: #374151 et font-size: 15px)
+                if (style.includes('color: #374151') &&
+                    style.includes('font-size: 15px') &&
+                    text &&
+                    text.length > 20 &&
+                    !text.startsWith('📅') &&
+                    !text.startsWith('📎') &&
+                    !text.startsWith('💡')) {
                     descriptions.push(text);
                 }
             });
 
+            console.log(`📝 Descriptions extraites: ${descriptions.length}`);
             return descriptions;
         }
 
-        // Remplacer les descriptions traduites dans le HTML
+        // Remplacer les descriptions traduites dans le HTML (méthode robuste)
         function replaceDescriptions(html, translations) {
-            let modifiedHtml = html;
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
 
-            const paragraphs = doc.querySelectorAll('p[style*="color: #374151"]');
+            const paragraphs = doc.querySelectorAll('p');
             let translationIndex = 0;
 
             paragraphs.forEach(p => {
+                const style = p.getAttribute('style') || '';
                 const text = p.textContent.trim();
-                if (text && text.length > 20 && !text.startsWith('📅') && !text.startsWith('📎')) {
+
+                // Même logique que extractArticleDescriptions
+                if (style.includes('color: #374151') &&
+                    style.includes('font-size: 15px') &&
+                    text &&
+                    text.length > 20 &&
+                    !text.startsWith('📅') &&
+                    !text.startsWith('📎') &&
+                    !text.startsWith('💡')) {
+
                     if (translationIndex < translations.length) {
                         const translation = translations[translationIndex];
+
+                        // Remplacer le contenu du paragraphe
                         if (translation.wasTranslated) {
-                            modifiedHtml = modifiedHtml.replace(translation.original, translation.translated);
+                            p.textContent = translation.translated;
+                            console.log(`✅ Traduit [${translationIndex}]: ${text.substring(0, 50)}... → ${translation.translated.substring(0, 50)}...`);
+                        } else {
+                            console.log(`⏭️ Ignoré [${translationIndex}]: Déjà dans la langue cible`);
                         }
+
                         translationIndex++;
                     }
                 }
             });
 
-            return modifiedHtml;
+            // Retourner seulement le contenu body (pas tout le document)
+            return doc.body.innerHTML;
         }
 
         // Confirmer traduction
         confirmTranslateBtn.addEventListener('click', async () => {
             const targetLang = targetLangSelect.value;
+
+            console.log(`🌐 Démarrage traduction vers ${targetLang.toUpperCase()}`);
 
             // Sauvegarder l'original
             if (!originalNewsletter) {
@@ -1250,9 +1278,10 @@
 
             // Extraire les descriptions
             const descriptions = extractArticleDescriptions(currentNewsletter);
+            console.log(`📝 ${descriptions.length} descriptions extraites`);
 
             if (descriptions.length === 0) {
-                alert('⚠️ Aucune description à traduire trouvée dans la newsletter');
+                alert('⚠️ Aucune description à traduire trouvée dans la newsletter.\n\nVérifiez que la newsletter est bien générée.');
                 return;
             }
 
@@ -1264,6 +1293,8 @@
             translateStatus.textContent = `Traduction de ${descriptions.length} descriptions vers ${targetLang.toUpperCase()}...`;
 
             try {
+                console.log(`📡 Envoi requête API...`);
+
                 const response = await fetch(`${API_URL}/translate`, {
                     method: 'POST',
                     headers: {
@@ -1275,17 +1306,23 @@
                     })
                 });
 
+                console.log(`📥 Réponse API reçue: ${response.status}`);
+
                 const data = await response.json();
 
                 if (!response.ok) {
+                    console.error('❌ Erreur API:', data);
                     throw new Error(data.error || 'Erreur lors de la traduction');
                 }
 
-                console.log('✅ Traduction:', data);
+                console.log('✅ Traduction réussie:', data);
 
                 // Remplacer dans le HTML
+                console.log(`🔄 Remplacement des descriptions...`);
                 currentNewsletter = replaceDescriptions(currentNewsletter, data.results);
                 newsletterPreview.innerHTML = currentNewsletter;
+
+                console.log(`✨ Affichage mis à jour`);
 
                 // Message de succès
                 translateStatus.textContent = `✅ ${data.translatedCount} descriptions traduites, ${data.skippedCount} déjà dans la langue`;
@@ -1296,7 +1333,9 @@
                 }, 3000);
 
             } catch (err) {
+                console.error('❌ Erreur traduction:', err);
                 translateStatus.textContent = `❌ Erreur : ${err.message}`;
+                alert(`Erreur de traduction:\n\n${err.message}\n\nVérifiez la console (F12) pour plus de détails.`);
                 confirmTranslateBtn.disabled = false;
                 setTimeout(() => {
                     translateProgress.style.display = 'none';
