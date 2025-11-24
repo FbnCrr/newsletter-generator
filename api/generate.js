@@ -380,10 +380,17 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { theme, period, preferredSources = [] } = req.body;
+  const { themes, period, preferredSources = [], excludedSites = [] } = req.body;
 
-  if (!theme) {
-    return res.status(400).json({ error: 'Thématique requise' });
+  // Support ancien format (theme → themes)
+  const themesList = themes || (req.body.theme ? [req.body.theme] : []);
+
+  if (!themesList || themesList.length === 0) {
+    return res.status(400).json({ error: 'Au moins une thématique requise' });
+  }
+
+  if (themesList.length > 5) {
+    return res.status(400).json({ error: 'Maximum 5 thématiques à la fois' });
   }
 
   const BRAVE_API_KEY = process.env.BRAVE_API_KEY;
