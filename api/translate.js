@@ -36,18 +36,26 @@ function detectLanguage(text) {
  * Traduit un texte via DeepL API
  * @param {string} text - Texte à traduire
  * @param {string} targetLang - Langue cible (FR, EN, ES)
+ * @param {string} sourceLang - Langue source (optionnel: EN, FR, ES)
  * @param {string} apiKey - Clé API DeepL
  * @returns {Promise<string>} Texte traduit
  */
-async function translateWithDeepL(text, targetLang, apiKey) {
+async function translateWithDeepL(text, targetLang, apiKey, sourceLang = null) {
   try {
+    const params = {
+      auth_key: apiKey,
+      text: text,
+      target_lang: targetLang.toUpperCase()
+    };
+
+    // Spécifier la langue source si fournie (force DeepL à traduire)
+    if (sourceLang) {
+      params.source_lang = sourceLang.toUpperCase();
+    }
+
     // DeepL API gratuite
     const response = await axios.post('https://api-free.deepl.com/v2/translate', null, {
-      params: {
-        auth_key: apiKey,
-        text: text,
-        target_lang: targetLang.toUpperCase()
-      },
+      params: params,
       timeout: 10000
     });
 
@@ -147,21 +155,26 @@ export default async function handler(req, res) {
 
       console.log(`  [${i + 1}/${texts.length}] Traduction: "${text.substring(0, 50)}..."`);
 
-      // Ne pas détecter la langue, laisser l'API gérer
-      // Les APIs DeepL et Claude sont assez intelligentes pour ne pas traduire si déjà dans la bonne langue
+      // Détecter la langue SOURCE pour aider DeepL (mais sans skip)
+      const detectedLang = detectLanguage(text);
+      console.log(`  → Langue détectée: ${detectedLang}`);
 
-      // Traduire
+      // Traduire TOUJOURS, même si détecté comme même langue
+      // (DeepL/Claude feront leur propre vérification)
       let translated = text;
       let success = false;
 
       // Essayer DeepL en priorité
       if (DEEPL_API_KEY && !success) {
         try {
-          console.log(`  → Traduction via DeepL...`);
-          translated = await translateWithDeepL(text, targetLang, DEEPL_API_KEY);
+          console.log(`  → Traduction via DeepL (${detectedLang} → ${targetLang})...`);
+          // Passer la langue source détectée à DeepL
+          translated = await translateWithDeepL(text, targetLang, DEEPL_API_KEY, detectedLang);
+          console.log(`  → DeepL retourné: "${translated.substring(0, 50)}..."`);
           success = true;
         } catch (error) {
-          console.log(`  ⚠️ DeepL échoué, fallback sur Claude...`);
+          console.error(`  ⚠️ DeepL échoué:`, error.message);
+          console.error(`  Détails erreur:`, error.response?.data || error);
         }
       }
 
