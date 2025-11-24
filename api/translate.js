@@ -145,21 +145,10 @@ export default async function handler(req, res) {
     for (let i = 0; i < texts.length; i++) {
       const text = texts[i];
 
-      // Détection de langue
-      const detectedLang = detectLanguage(text);
-      console.log(`  [${i + 1}/${texts.length}] Langue détectée: ${detectedLang}`);
+      console.log(`  [${i + 1}/${texts.length}] Traduction: "${text.substring(0, 50)}..."`);
 
-      // Si déjà dans la langue cible, pas besoin de traduire
-      if (detectedLang === targetLang.toLowerCase()) {
-        console.log(`  → Déjà en ${targetLang}, pas de traduction`);
-        results.push({
-          original: text,
-          translated: text,
-          detectedLang: detectedLang,
-          wasTranslated: false
-        });
-        continue;
-      }
+      // Ne pas détecter la langue, laisser l'API gérer
+      // Les APIs DeepL et Claude sont assez intelligentes pour ne pas traduire si déjà dans la bonne langue
 
       // Traduire
       let translated = text;
@@ -187,12 +176,20 @@ export default async function handler(req, res) {
         }
       }
 
+      // Vérifier si le texte a vraiment changé (traduction effective)
+      const reallyTranslated = success && translated !== text;
+
       results.push({
         original: text,
         translated: translated,
-        detectedLang: detectedLang,
-        wasTranslated: success
+        wasTranslated: reallyTranslated
       });
+
+      if (reallyTranslated) {
+        console.log(`  ✅ Traduit: "${text.substring(0, 30)}..." → "${translated.substring(0, 30)}..."`);
+      } else {
+        console.log(`  ⏭️ Inchangé (déjà dans langue cible ou erreur)`);
+      }
 
       // Petit délai entre chaque traduction
       if (i < texts.length - 1) {

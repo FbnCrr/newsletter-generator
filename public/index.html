@@ -866,8 +866,8 @@
                     <div class="input-group">
                         <label for="emailProvider">Client de messagerie</label>
                         <select id="emailProvider" style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1em;">
-                            <option value="gmail">Gmail</option>
                             <option value="outlook">Outlook</option>
+                            <option value="gmail">Gmail</option>
                         </select>
                     </div>
                     <p style="color: #666; font-size: 0.9em; margin-top: 15px;">
@@ -877,7 +877,7 @@
                 <div class="modal-footer">
                     <button class="action-btn" id="cancelEmailBtn">Annuler</button>
                     <button class="action-btn primary" id="confirmEmailBtn">
-                        ✉️ <span id="emailBtnText">Ouvrir Gmail</span>
+                        ✉️ <span id="emailBtnText">Ouvrir Outlook</span>
                     </button>
                 </div>
             </div>
@@ -1628,11 +1628,14 @@
                         emailUrl += `&to=${encodeURIComponent(to)}`;
                     }
                 } else if (provider === 'outlook') {
-                    emailUrl = 'https://outlook.live.com/mail/0/deeplink/compose';
-                    emailUrl += `?subject=${encodeURIComponent(subject)}`;
+                    // Utiliser outlook.office.com qui fonctionne pour les comptes professionnels et personnels
+                    emailUrl = 'https://outlook.office.com/mail/deeplink/compose?';
+                    const params = [];
                     if (to) {
-                        emailUrl += `&to=${encodeURIComponent(to)}`;
+                        params.push(`to=${encodeURIComponent(to)}`);
                     }
+                    params.push(`subject=${encodeURIComponent(subject)}`);
+                    emailUrl += params.join('&');
                 }
 
                 // Ouvrir le client email
