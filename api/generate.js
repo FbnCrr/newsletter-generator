@@ -271,9 +271,9 @@ function generateNewsletterHTML(theme, enrichedNews, enrichedResults, period, in
           </tr>`;
 
   // ACTUALITÉS PRINCIPALES
-  const articlesToShow = enrichedNews.length > 0 ? enrichedNews : enrichedResults.slice(0, 6);
+  const articlesToShow = enrichedNews.length > 0 ? enrichedNews : enrichedResults.slice(0, 10);
 
-  articlesToShow.slice(0, 6).forEach((article, index) => {
+  articlesToShow.slice(0, 10).forEach((article, index) => {
     const emoji = index === 0 ? '🔥' : index === 1 ? '⚡' : index === 2 ? '📰' : '📌';
     const imageUrl = article.thumbnail || `https://via.placeholder.com/540x300/2563eb/ffffff?text=${encodeURIComponent(theme)}`;
 
@@ -397,13 +397,23 @@ export default async function handler(req, res) {
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY; // Optionnel
 
   if (!BRAVE_API_KEY) {
-    return res.status(500).json({ 
-      error: 'Clé API Brave non configurée.' 
+    return res.status(500).json({
+      error: 'Clé API Brave non configurée.'
     });
   }
 
   try {
+    // MODE SIMPLE : Un seul thème pour l'instant
+    // TODO : Support multi-thématiques complet à venir
+    const theme = themesList[0];
+    const isMultiTheme = themesList.length > 1;
+
+    if (isMultiTheme) {
+      console.log(`⚠️ Multi-thématiques détecté (${themesList.length}), mais pas encore supporté. Utilisation du premier thème : ${theme}`);
+    }
+
     console.log(`🔍 Génération newsletter pour: ${theme} (Période: ${period || 'récent'})`);
+    console.log(`🚫 Sites exclus: ${excludedSites.length} sites`);
 
     // ANALYSER L'INTENTION DE RECHERCHE
     const { queries, intentType, mainTopic } = analyzeSearchIntent(theme, period);
@@ -444,11 +454,35 @@ export default async function handler(req, res) {
     }
 
     // DÉDUPLIQUER
-    const uniqueResults = Array.from(
+    let uniqueResults = Array.from(
       new Map(allResults.map(item => [item.url, item])).values()
-    ).slice(0, 25);
+    );
 
     console.log(`✅ ${uniqueResults.length} résultats uniques trouvés`);
+
+    // FILTRER LES SITES EXCLUS
+    if (excludedSites && excludedSites.length > 0) {
+      const beforeFilter = uniqueResults.length;
+      uniqueResults = uniqueResults.filter(article => {
+        try {
+          const articleDomain = new URL(article.url).hostname.replace('www.', '');
+          const isExcluded = excludedSites.some(excludedDomain =>
+            articleDomain.includes(excludedDomain) || excludedDomain.includes(articleDomain)
+          );
+          return !isExcluded;
+        } catch (e) {
+          return true; // Garder l'article si URL invalide
+        }
+      });
+      const filtered = beforeFilter - uniqueResults.length;
+      if (filtered > 0) {
+        console.log(`🚫 ${filtered} résultats filtrés (sites exclus)`);
+      }
+    }
+
+    // Limiter le nombre de résultats
+    uniqueResults = uniqueResults.slice(0, 25);
+    console.log(`📊 ${uniqueResults.length} résultats après filtrage`);
 
     // ENRICHIR AVEC RÉSUMÉS IA (si clé disponible)
     console.log(`🤖 Enrichissement des articles${ANTHROPIC_API_KEY ? ' avec IA' : ''}...`);
@@ -460,10 +494,10 @@ export default async function handler(req, res) {
     }
 
     // Séparer actualités et résultats généraux
-    const enrichedNews = enrichedArticles.filter(a => 
+    const enrichedNews = enrichedArticles.filter(a =>
       newsResults.some(n => n.url === a.url)
-    ).slice(0, 6);
-    
+    ).slice(0, 10);  // Maximum 10 actualités pour thème unique
+
     const enrichedResults = enrichedArticles;
 
     console.log(`📰 ${enrichedNews.length} actualités | ${enrichedResults.length} résultats totaux`);
