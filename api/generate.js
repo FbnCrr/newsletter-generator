@@ -372,6 +372,251 @@ function periodToFreshness(period) {
   return 'pm';
 }
 
+// ==========================================
+// FONCTION DE TRAITEMENT D'UN THÈME
+// ==========================================
+async function processTheme(theme, period, preferredSources, excludedSites, BRAVE_API_KEY, ANTHROPIC_API_KEY, maxArticles) {
+  console.log(`  🔍 Analyse intention pour: ${theme}`);
+
+  // ANALYSER L'INTENTION DE RECHERCHE
+  const { queries, intentType, mainTopic } = analyzeSearchIntent(theme, period);
+  console.log(`  🧠 Intention: ${intentType} | Sujet: ${mainTopic}`);
+
+  const freshness = periodToFreshness(period);
+
+  // RECHERCHES MULTIPLES INTELLIGENTES
+  console.log(`  📡 Recherches intelligentes...`);
+  let allResults = [];
+
+  for (const query of queries.slice(0, 4)) {
+    const results = await searchWeb(BRAVE_API_KEY, query, 8, freshness);
+    allResults = allResults.concat(results);
+    await new Promise(resolve => setTimeout(resolve, 1200));
+  }
+
+  // RECHERCHE D'ACTUALITÉS SPÉCIFIQUE
+  const newsResults = await searchNews(BRAVE_API_KEY, `${mainTopic} actualités`, 10, freshness);
+  allResults = allResults.concat(newsResults);
+
+  // RECHERCHES CIBLÉES SUR SITES PRÉFÉRÉS
+  if (preferredSources && preferredSources.length > 0) {
+    console.log(`  🎯 ${preferredSources.length} sites préférés...`);
+    for (const source of preferredSources.slice(0, 5)) {
+      const siteQuery = `site:${source} ${mainTopic}`;
+      const siteResults = await searchWeb(BRAVE_API_KEY, siteQuery, 5, freshness);
+      allResults = allResults.concat(siteResults);
+      await new Promise(resolve => setTimeout(resolve, 1200));
+    }
+  }
+
+  // DÉDUPLIQUER
+  let uniqueResults = Array.from(
+    new Map(allResults.map(item => [item.url, item])).values()
+  );
+
+  console.log(`  ✅ ${uniqueResults.length} résultats uniques`);
+
+  // FILTRER LES SITES EXCLUS
+  if (excludedSites && excludedSites.length > 0) {
+    uniqueResults = uniqueResults.filter(article => {
+      try {
+        const articleDomain = new URL(article.url).hostname.replace('www.', '');
+        const isExcluded = excludedSites.some(excludedDomain =>
+          articleDomain.includes(excludedDomain) || excludedDomain.includes(articleDomain)
+        );
+        return !isExcluded;
+      } catch (e) {
+        return true;
+      }
+    });
+  }
+
+  // Limiter avant enrichissement
+  uniqueResults = uniqueResults.slice(0, Math.max(maxArticles * 2, 20));
+
+  // ENRICHIR AVEC RÉSUMÉS IA
+  console.log(`  🤖 Enrichissement ${maxArticles} articles...`);
+  const enrichedArticles = [];
+
+  for (const article of uniqueResults.slice(0, maxArticles * 2)) {
+    const enriched = await enrichArticleWithAI(article, theme, ANTHROPIC_API_KEY);
+    enrichedArticles.push(enriched);
+  }
+
+  // Prendre les N meilleurs articles
+  const articles = enrichedArticles.slice(0, maxArticles);
+
+  // Ressources supplémentaires
+  const additionalResources = enrichedArticles.slice(maxArticles);
+
+  console.log(`  📰 ${articles.length} articles sélectionnés | ${additionalResources.length} ressources supplémentaires`);
+
+  return {
+    articles,
+    additionalResources,
+    totalResults: enrichedArticles.length,
+    intentType
+  };
+}
+
+// ==========================================
+// FONCTION DE GÉNÉRATION HTML MULTI-THÉMATIQUE
+// ==========================================
+function generateMultiThemeNewsletterHTML(allThemeResults, period) {
+  const date = new Date().toLocaleDateString('fr-FR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  let periodTitle = period ? ` - ${period}` : ` - ${date}`;
+
+  const totalArticles = allThemeResults.reduce((sum, t) => sum + t.articles.length, 0);
+  const totalSources = allThemeResults.reduce((sum, t) => sum + t.totalResults, 0);
+  const themesNames = allThemeResults.map(t => t.theme).join(', ');
+
+  let html = `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newsletter Multi-Thématique${periodTitle}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background-color: #f3f4f6;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #f3f4f6; padding: 20px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); max-width: 600px; margin: 0 auto;">
+
+          <!-- HEADER -->
+          <tr>
+            <td style="padding: 40px 40px 30px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px 12px 0 0; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">
+                📬 Newsletter Multi-Thématique
+              </h1>
+              <p style="margin: 10px 0 0 0; color: #e0e7ff; font-size: 14px;">
+                ${allThemeResults.length} thématiques ${periodTitle}
+              </p>
+            </td>
+          </tr>
+
+          <!-- INTRODUCTION -->
+          <tr>
+            <td style="padding: 30px 40px;">
+              <p style="margin: 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                Découvrez une sélection d'actualités sur <strong>${allThemeResults.length} thématiques</strong> : ${themesNames}.
+                <br><br>
+                Cette newsletter compile <strong>${totalArticles} articles</strong> issus de <strong>${totalSources} sources vérifiées</strong>.
+              </p>
+            </td>
+          </tr>`;
+
+  // SECTION PAR THÈME
+  allThemeResults.forEach((themeData, themeIndex) => {
+    const { theme, articles } = themeData;
+
+    html += `
+          <!-- SÉPARATEUR THÈME -->
+          <tr>
+            <td style="padding: 20px 40px;">
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 3px; border-radius: 2px; margin: 20px 0;"></div>
+              <h2 style="margin: 15px 0; color: #667eea; font-size: 24px; font-weight: 700; text-align: center;">
+                ${themeIndex === 0 ? '🔥' : themeIndex === 1 ? '⚡' : themeIndex === 2 ? '🚀' : themeIndex === 3 ? '💡' : '📌'} ${theme}
+              </h2>
+              <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px; text-align: center;">
+                ${articles.length} article${articles.length > 1 ? 's' : ''}
+              </p>
+            </td>
+          </tr>`;
+
+    // ARTICLES DU THÈME
+    articles.forEach((article, index) => {
+      const imageUrl = article.thumbnail || `https://via.placeholder.com/540x300/667eea/ffffff?text=${encodeURIComponent(theme)}`;
+
+      html += `
+          <!-- ARTICLE ${index + 1} -->
+          <tr>
+            <td style="padding: 0 40px 25px 40px;">
+              <h3 style="margin: 0 0 15px 0; border-left: 4px solid #667eea; padding-left: 15px;">
+                <a href="${article.url}" style="color: #1e40af; text-decoration: none; font-size: 18px; display: block;" target="_blank">
+                  ${article.title}
+                </a>
+              </h3>
+              <img src="${imageUrl}" alt="${article.title}" style="width: 100%; max-width: 540px; height: auto; border-radius: 8px; margin-bottom: 15px; display: block;" onerror="this.src='https://via.placeholder.com/540x300/667eea/ffffff?text=Image+non+disponible'" />
+              <p style="margin: 0 0 10px 0; color: #374151; font-size: 15px; line-height: 1.6;">
+                ${article.summary || article.description || 'Résumé non disponible.'}
+              </p>
+              <p style="margin: 0; color: #9ca3af; font-size: 13px;">
+                📅 ${article.age || 'Date inconnue'} • 📎 <a href="${article.url}" style="color: #667eea; text-decoration: none;">${article.source}</a>
+              </p>
+            </td>
+          </tr>`;
+    });
+  });
+
+  // POUR ALLER PLUS LOIN
+  const allAdditionalResources = allThemeResults.flatMap(t =>
+    t.additionalResources.map(a => ({ ...a, theme: t.theme }))
+  );
+
+  if (allAdditionalResources.length > 0) {
+    html += `
+          <!-- POUR ALLER PLUS LOIN -->
+          <tr>
+            <td style="padding: 20px 40px 25px 40px;">
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 2px; border-radius: 2px; margin: 20px 0;"></div>
+              <h2 style="margin: 20px 0 15px 0; color: #1e40af; font-size: 20px; border-left: 4px solid #2563eb; padding-left: 15px;">
+                🔗 Pour aller plus loin
+              </h2>
+              <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 14px; line-height: 1.8;">`;
+
+    allAdditionalResources.slice(0, 15).forEach((article) => {
+      html += `
+                <li><strong>[${article.theme}]</strong> <a href="${article.url}" style="color: #2563eb; text-decoration: none;">${article.title}</a> <span style="color: #9ca3af;">(${article.source})</span></li>`;
+    });
+
+    html += `
+              </ul>
+            </td>
+          </tr>`;
+  }
+
+  // CONCLUSION
+  html += `
+          <!-- CONCLUSION -->
+          <tr>
+            <td style="padding: 0 40px 40px 40px;">
+              <div style="background-color: #eff6ff; border-radius: 8px; padding: 20px; border-left: 4px solid #667eea;">
+                <p style="margin: 0; color: #1e40af; font-size: 15px; line-height: 1.6;">
+                  💡 <strong>En résumé :</strong> Cette newsletter multi-thématique a compilé <strong>${totalSources} sources</strong> sur ${allThemeResults.length} domaines différents. Les informations présentées offrent une vue d'ensemble complète des développements récents dans ces secteurs.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 12px 12px; text-align: center;">
+              <p style="margin: 0; color: #6b7280; font-size: 13px;">
+                Newsletter générée automatiquement • Multi-thématique • ${date}
+              </p>
+              <p style="margin: 8px 0 0 0; color: #9ca3af; font-size: 12px;">
+                Propulsé par Brave Search API • ${totalSources} sources analysées
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return html;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -409,116 +654,64 @@ export default async function handler(req, res) {
   }
 
   try {
-    // MODE SIMPLE : Un seul thème pour l'instant
-    // TODO : Support multi-thématiques complet à venir
-    const theme = themesList[0];
     const isMultiTheme = themesList.length > 1;
 
-    if (isMultiTheme) {
-      console.log(`⚠️ Multi-thématiques détecté (${themesList.length}), mais pas encore supporté. Utilisation du premier thème : ${theme}`);
-    }
-
-    console.log(`🔍 Génération newsletter pour: ${theme} (Période: ${period || 'récent'})`);
+    console.log(`🔍 Génération newsletter : ${isMultiTheme ? `${themesList.length} thématiques` : `1 thématique`}`);
+    console.log(`📋 Thèmes: ${themesList.join(', ')}`);
     console.log(`🚫 Sites exclus: ${excludedSites.length} sites`);
 
-    // ANALYSER L'INTENTION DE RECHERCHE
-    const { queries, intentType, mainTopic } = analyzeSearchIntent(theme, period);
-    console.log(`🧠 Intention détectée: ${intentType} | Sujet: ${mainTopic}`);
-    console.log(`📝 Requêtes générées:`, queries);
+    // MODE MULTI-THÉMATIQUE
+    if (isMultiTheme) {
+      console.log(`\n🎯 MODE MULTI-THÉMATIQUE activé (3 articles par thème)`);
 
-    const freshness = periodToFreshness(period);
+      const allThemeResults = [];
 
-    // RECHERCHES MULTIPLES INTELLIGENTES
-    console.log('📡 Lancement des recherches intelligentes...');
-    let allResults = [];
-    
-    for (const query of queries.slice(0, 4)) {
-      const results = await searchWeb(BRAVE_API_KEY, query, 8, freshness);
-      allResults = allResults.concat(results);
-      await new Promise(resolve => setTimeout(resolve, 1200));
-    }
+      // Traiter chaque thème
+      for (let i = 0; i < themesList.length; i++) {
+        const theme = themesList[i];
+        console.log(`\n📌 [${i + 1}/${themesList.length}] Traitement du thème: ${theme}`);
 
-    // RECHERCHE D'ACTUALITÉS SPÉCIFIQUE
-    const newsResults = await searchNews(BRAVE_API_KEY, `${mainTopic} actualités`, 10, freshness);
-    allResults = allResults.concat(newsResults);
-
-    // RECHERCHES CIBLÉES SUR SITES PRÉFÉRÉS
-    if (preferredSources && preferredSources.length > 0) {
-      console.log(`🎯 Recherche sur ${preferredSources.length} sites préférés...`);
-
-      for (const source of preferredSources.slice(0, 5)) { // Limiter à 5 sites max
-        const siteQuery = `site:${source} ${mainTopic}`;
-        console.log(`  → Recherche sur ${source}...`);
-
-        const siteResults = await searchWeb(BRAVE_API_KEY, siteQuery, 5, freshness);
-        allResults = allResults.concat(siteResults);
-
-        await new Promise(resolve => setTimeout(resolve, 1200)); // Délai anti-rate limit
+        const themeData = await processTheme(theme, period, preferredSources, excludedSites, BRAVE_API_KEY, ANTHROPIC_API_KEY, 3);
+        allThemeResults.push({
+          theme: theme,
+          ...themeData
+        });
       }
 
-      console.log(`✅ Recherches sur sites préférés terminées`);
-    }
+      // Générer newsletter multi-thématique
+      const newsletterHTML = generateMultiThemeNewsletterHTML(allThemeResults, period);
 
-    // DÉDUPLIQUER
-    let uniqueResults = Array.from(
-      new Map(allResults.map(item => [item.url, item])).values()
-    );
+      const totalArticles = allThemeResults.reduce((sum, t) => sum + t.articles.length, 0);
+      const totalSources = allThemeResults.reduce((sum, t) => sum + t.totalResults, 0);
 
-    console.log(`✅ ${uniqueResults.length} résultats uniques trouvés`);
-
-    // FILTRER LES SITES EXCLUS
-    if (excludedSites && excludedSites.length > 0) {
-      const beforeFilter = uniqueResults.length;
-      uniqueResults = uniqueResults.filter(article => {
-        try {
-          const articleDomain = new URL(article.url).hostname.replace('www.', '');
-          const isExcluded = excludedSites.some(excludedDomain =>
-            articleDomain.includes(excludedDomain) || excludedDomain.includes(articleDomain)
-          );
-          return !isExcluded;
-        } catch (e) {
-          return true; // Garder l'article si URL invalide
-        }
+      return res.status(200).json({
+        success: true,
+        newsletter: newsletterHTML,
+        themes: themesList,
+        period: period || 'récent',
+        mode: 'multi-theme',
+        themesCount: themesList.length,
+        articlesCount: totalArticles,
+        sourcesCount: totalSources,
+        aiSummariesUsed: !!ANTHROPIC_API_KEY,
+        format: 'html'
       });
-      const filtered = beforeFilter - uniqueResults.length;
-      if (filtered > 0) {
-        console.log(`🚫 ${filtered} résultats filtrés (sites exclus)`);
-      }
+
     }
 
-    // Limiter le nombre de résultats
-    uniqueResults = uniqueResults.slice(0, 25);
-    console.log(`📊 ${uniqueResults.length} résultats après filtrage`);
+    // MODE SIMPLE : Un seul thème (10 articles)
+    console.log(`\n✨ MODE SIMPLE activé (10 articles maximum)`);
+    const theme = themesList[0];
+    const themeData = await processTheme(theme, period, preferredSources, excludedSites, BRAVE_API_KEY, ANTHROPIC_API_KEY, 10);
 
-    // ENRICHIR AVEC RÉSUMÉS IA (si clé disponible)
-    console.log(`🤖 Enrichissement des articles${ANTHROPIC_API_KEY ? ' avec IA' : ''}...`);
-    const enrichedArticles = [];
-
-    // Enrichir jusqu'à 20 articles pour s'assurer d'avoir au moins 10 bons résultats
-    for (const article of uniqueResults.slice(0, 20)) {
-      const enriched = await enrichArticleWithAI(article, theme, ANTHROPIC_API_KEY);
-      enrichedArticles.push(enriched);
-    }
-
-    // Prendre les 10 meilleurs résultats pour affichage principal
-    const enrichedNews = enrichedArticles.slice(0, 10);
-
-    // Ressources supplémentaires pour "Pour aller plus loin" (exclure les 10 déjà affichés)
-    const additionalResources = enrichedArticles.slice(10);
-
-    // Total pour les statistiques
-    const totalResources = enrichedArticles.length;
-
-    console.log(`📰 ${enrichedNews.length} articles à afficher | ${additionalResources.length} ressources supplémentaires | ${totalResources} résultats totaux`);
-
-    // GÉNÉRER LA NEWSLETTER
+    // Générer newsletter simple
     const newsletterHTML = generateNewsletterHTML(
       theme,
-      enrichedNews,
-      additionalResources,  // Ressources supplémentaires uniquement
+      themeData.articles,
+      themeData.additionalResources,
       period,
-      intentType,
-      totalResources  // Total pour les statistiques
+      themeData.intentType,
+      themeData.totalResults
     );
 
     return res.status(200).json({
@@ -526,10 +719,11 @@ export default async function handler(req, res) {
       newsletter: newsletterHTML,
       theme,
       period: period || 'récent',
-      intentType,
-      resultsCount: totalResources,
-      newsCount: enrichedNews.length,
-      additionalCount: additionalResources.length,
+      mode: 'single-theme',
+      intentType: themeData.intentType,
+      resultsCount: themeData.totalResults,
+      newsCount: themeData.articles.length,
+      additionalCount: themeData.additionalResources.length,
       aiSummariesUsed: !!ANTHROPIC_API_KEY,
       format: 'html'
     });
