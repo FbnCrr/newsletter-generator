@@ -635,13 +635,16 @@
         <!-- Input Section -->
         <div class="input-section">
             <div class="input-group">
-                <label for="theme">Thématique de la newsletter</label>
-                <input 
-                    type="text" 
-                    id="theme" 
-                    placeholder="Ex: Intelligence artificielle, tendances réseaux sociaux, innovations spatial..."
+                <label for="theme">Thématique(s) de la newsletter</label>
+                <input
+                    type="text"
+                    id="theme"
+                    placeholder="Ex: Intelligence artificielle (ou plusieurs : IA, aérospatial, automobile)"
                     autocomplete="off"
                 >
+                <p style="color: #666; font-size: 0.9em; margin-top: 8px;">
+                    💡 <strong>Astuce :</strong> Séparez plusieurs thématiques par des virgules (max 5). Chaque thème aura sa propre section.
+                </p>
             </div>
 
             <div class="input-group">
@@ -791,6 +794,37 @@
                     <div class="settings-info">
                         💡 <strong>Astuce :</strong> Entrez uniquement le nom de domaine (ex: techcrunch.com).
                         Ces sites seront recherchés en priorité via l'opérateur <code>site:</code>
+                    </div>
+                </div>
+
+                <!-- Section Sites Exclus -->
+                <div class="settings-section">
+                    <h3>🚫 Sites à Exclure</h3>
+                    <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                        Ces sites seront exclus des résultats de recherche.
+                    </p>
+
+                    <div class="source-input-group">
+                        <input
+                            type="text"
+                            id="excludedInput"
+                            class="source-input"
+                            placeholder="Ex: wikipedia.org, reddit.com"
+                        >
+                        <button class="add-source-btn" id="addExcludedBtn">
+                            ➕ Ajouter
+                        </button>
+                    </div>
+
+                    <div class="sources-list" id="excludedList">
+                        <div class="empty-sources">
+                            Aucun site exclu. Ajoutez les sites à éviter ci-dessus.
+                        </div>
+                    </div>
+
+                    <div class="settings-info">
+                        💡 <strong>Astuce :</strong> Les sites exclus ne seront jamais affichés dans vos newsletters.
+                        Utile pour filtrer Wikipedia, forums, etc.
                     </div>
                 </div>
 
@@ -1003,6 +1037,94 @@
         loadPreferredSources();
 
         // ==========================================
+        // GESTION DES SITES EXCLUS
+        // ==========================================
+
+        const excludedInput = document.getElementById('excludedInput');
+        const addExcludedBtn = document.getElementById('addExcludedBtn');
+        const excludedList = document.getElementById('excludedList');
+
+        let excludedSites = [];
+
+        // Charger les sites exclus depuis localStorage
+        function loadExcludedSites() {
+            const saved = localStorage.getItem('excludedSites');
+            excludedSites = saved ? JSON.parse(saved) : [];
+            renderExcludedList();
+        }
+
+        // Sauvegarder les sites exclus dans localStorage
+        function saveExcludedSites() {
+            localStorage.setItem('excludedSites', JSON.stringify(excludedSites));
+        }
+
+        // Afficher la liste des sites exclus
+        function renderExcludedList() {
+            if (excludedSites.length === 0) {
+                excludedList.innerHTML = '<div class="empty-sources">Aucun site exclu. Ajoutez les sites à éviter ci-dessus.</div>';
+                return;
+            }
+
+            excludedList.innerHTML = excludedSites.map((site, index) => `
+                <div class="source-item">
+                    <span class="source-url">🚫 ${site}</span>
+                    <button class="remove-source-btn" onclick="removeExcluded(${index})">🗑️ Supprimer</button>
+                </div>
+            `).join('');
+        }
+
+        // Ajouter un site exclu
+        function addExcluded() {
+            const site = excludedInput.value.trim().toLowerCase();
+
+            if (!site) {
+                alert('⚠️ Veuillez entrer un nom de domaine');
+                return;
+            }
+
+            // Nettoyer l'URL
+            const cleanSite = site
+                .replace(/^https?:\/\//, '')
+                .replace(/^www\./, '')
+                .replace(/\/$/, '');
+
+            // Vérifier si déjà présent
+            if (excludedSites.includes(cleanSite)) {
+                alert('⚠️ Ce site est déjà dans vos sites exclus');
+                return;
+            }
+
+            // Ajouter
+            excludedSites.push(cleanSite);
+            saveExcludedSites();
+            renderExcludedList();
+            excludedInput.value = '';
+            excludedInput.focus();
+        }
+
+        // Supprimer un site exclu (fonction globale)
+        window.removeExcluded = function(index) {
+            if (confirm(`Retirer "${excludedSites[index]}" des sites exclus ?`)) {
+                excludedSites.splice(index, 1);
+                saveExcludedSites();
+                renderExcludedList();
+            }
+        };
+
+        // Ajouter site exclu au clic
+        addExcludedBtn.addEventListener('click', addExcluded);
+
+        // Ajouter site exclu avec Entrée
+        excludedInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addExcluded();
+            }
+        });
+
+        // Charger les sites exclus au démarrage
+        loadExcludedSites();
+
+        // ==========================================
         // FIN GESTION DES PARAMÈTRES
         // ==========================================
 
@@ -1026,10 +1148,17 @@
             try {
                 const response = await fetch(`${API_URL}/health`);
                 const data = await response.json();
-                
+
                 if (data.apiConfigured) {
                     statusBadge.className = 'status-badge status-ok';
-                    statusBadge.textContent = '✅ Serveur prêt - API configurée';
+                    const translationInfo = data.apis?.translationAvailable
+                        ? ` | 🌐 Traduction: ${data.apis.translationMethod}`
+                        : ' | ⚠️ Traduction: Non configurée';
+                    statusBadge.textContent = `✅ Serveur prêt${translationInfo}`;
+                    statusBadge.title = `Brave: ${data.apis?.brave ? 'OK' : 'Non'} | DeepL: ${data.apis?.deepl ? 'OK' : 'Non'} | Claude: ${data.apis?.anthropic ? 'OK' : 'Non'}`;
+
+                    // Log pour diagnostic
+                    console.log('📊 Configuration APIs:', data.apis);
                 } else {
                     statusBadge.className = 'status-badge status-error';
                     statusBadge.textContent = '⚠️ API Brave non configurée';
@@ -1057,10 +1186,26 @@
         });
 
         async function generateNewsletter() {
-            const theme = themeInput.value.trim();
-            
-            if (!theme) {
+            const themeInput_value = themeInput.value.trim();
+
+            if (!themeInput_value) {
                 showError('Veuillez entrer une thématique');
+                return;
+            }
+
+            // Parser les thématiques (séparées par des virgules)
+            const themes = themeInput_value
+                .split(',')
+                .map(t => t.trim())
+                .filter(t => t.length > 0);
+
+            if (themes.length === 0) {
+                showError('Veuillez entrer au moins une thématique valide');
+                return;
+            }
+
+            if (themes.length > 5) {
+                showError('Maximum 5 thématiques à la fois');
                 return;
             }
 
@@ -1078,18 +1223,28 @@
             loading.classList.add('active');
             generateBtn.disabled = true;
             btnIcon.textContent = '⏳';
-            btnText.textContent = 'Recherche en cours...';
+            btnText.textContent = themes.length > 1
+                ? `Recherche multi-thématique (${themes.length} thèmes)...`
+                : 'Recherche en cours...';
 
             try {
+                console.log(`🔍 Génération newsletter :`, {
+                    themes,
+                    period,
+                    preferredSources,
+                    excludedSites
+                });
+
                 const response = await fetch(`${API_URL}/generate`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        theme,
+                        themes: themes,  // Envoi d'un array maintenant
                         period,
-                        preferredSources: preferredSources
+                        preferredSources: preferredSources,
+                        excludedSites: excludedSites
                     })
                 });
 
