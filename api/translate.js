@@ -42,9 +42,18 @@ function detectLanguage(text) {
  */
 async function translateWithDeepL(text, targetLang, apiKey, sourceLang = null) {
   try {
+    // Nettoyer le texte des caractères Unicode invalides (surrogates orphelins)
+    // Ces caractères causent des erreurs "URI malformed"
+    const cleanText = text
+      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '') // Supprimer surrogate pairs complets (emojis)
+      .replace(/[\uD800-\uDFFF]/g, '') // Supprimer surrogates orphelins
+      .trim();
+
+    console.log(`  → Texte nettoyé: "${cleanText.substring(0, 50)}..."`);
+
     const params = {
       auth_key: apiKey,
-      text: text,
+      text: cleanText,
       target_lang: targetLang.toUpperCase()
     };
 
@@ -53,8 +62,17 @@ async function translateWithDeepL(text, targetLang, apiKey, sourceLang = null) {
       params.source_lang = sourceLang.toUpperCase();
     }
 
-    // DeepL API gratuite
-    const response = await axios.post('https://api-free.deepl.com/v2/translate', null, {
+    // Détecter si clé Pro ou Free
+    // Clés Free se terminent par :fx
+    // Clés Pro ont un format différent
+    const isFreeKey = apiKey.endsWith(':fx');
+    const deeplUrl = isFreeKey
+      ? 'https://api-free.deepl.com/v2/translate'
+      : 'https://api.deepl.com/v2/translate';
+
+    console.log(`  → URL DeepL: ${deeplUrl} (${isFreeKey ? 'Free' : 'Pro'})`);
+
+    const response = await axios.post(deeplUrl, null, {
       params: params,
       timeout: 10000
     });
