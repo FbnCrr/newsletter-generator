@@ -856,21 +856,28 @@
                     </div>
                     <div class="input-group">
                         <label for="emailSubject">Objet</label>
-                        <input 
-                            type="text" 
-                            id="emailSubject" 
+                        <input
+                            type="text"
+                            id="emailSubject"
                             placeholder="Newsletter - [Thématique]"
                             style="width: 100%;"
                         >
                     </div>
+                    <div class="input-group">
+                        <label for="emailProvider">Client de messagerie</label>
+                        <select id="emailProvider" style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1em;">
+                            <option value="gmail">Gmail</option>
+                            <option value="outlook">Outlook</option>
+                        </select>
+                    </div>
                     <p style="color: #666; font-size: 0.9em; margin-top: 15px;">
-                        💡 Nous allons ouvrir Gmail avec votre newsletter. Vous pourrez ajuster et envoyer.
+                        💡 Nous allons ouvrir votre client email avec la newsletter. Vous pourrez ajuster et envoyer.
                     </p>
                 </div>
                 <div class="modal-footer">
                     <button class="action-btn" id="cancelEmailBtn">Annuler</button>
                     <button class="action-btn primary" id="confirmEmailBtn">
-                        ✉️ Ouvrir Gmail
+                        ✉️ <span id="emailBtnText">Ouvrir Gmail</span>
                     </button>
                 </div>
             </div>
@@ -915,6 +922,8 @@
         const modalClose = document.getElementById('modalClose');
         const emailTo = document.getElementById('emailTo');
         const emailSubject = document.getElementById('emailSubject');
+        const emailProvider = document.getElementById('emailProvider');
+        const emailBtnText = document.getElementById('emailBtnText');
         const cancelEmailBtn = document.getElementById('cancelEmailBtn');
         const confirmEmailBtn = document.getElementById('confirmEmailBtn');
 
@@ -1357,101 +1366,114 @@
             const doc = parser.parseFromString(html, 'text/html');
 
             const texts = [];
-            const allElements = doc.querySelectorAll('*');
 
-            allElements.forEach(el => {
-                // Extraire les titres (h2 > a)
-                if (el.tagName === 'H2') {
-                    const link = el.querySelector('a[style*="color: #1e40af"]');
-                    if (link) {
-                        const text = link.textContent.trim();
-                        // Enlever l'emoji au début (🔥, ⚡, 📰, 📌)
-                        const match = text.match(/^[🔥⚡📰📌]\s*(.+)$/);
-                        if (match && match[1]) {
-                            texts.push(match[1]);
-                        }
-                    }
-                }
+            // Extraire les titres (h2 > a avec color: #1e40af)
+            const titleLinks = doc.querySelectorAll('h2 a[style*="color: #1e40af"]');
+            console.log(`🔍 Titres trouvés: ${titleLinks.length}`);
 
-                // Extraire les descriptions (p)
-                if (el.tagName === 'P') {
-                    const style = el.getAttribute('style') || '';
-                    const text = el.textContent.trim();
-
-                    if (style.includes('color: #374151') &&
-                        style.includes('font-size: 15px') &&
-                        text &&
-                        text.length > 20 &&
-                        !text.startsWith('📅') &&
-                        !text.startsWith('📎') &&
-                        !text.startsWith('💡')) {
-                        texts.push(text);
-                    }
+            titleLinks.forEach((link, idx) => {
+                const text = link.textContent.trim();
+                // Enlever l'emoji au début (🔥, ⚡, 📰, 📌)
+                const match = text.match(/^[🔥⚡📰📌]\s*(.+)$/);
+                if (match && match[1]) {
+                    texts.push(match[1]);
+                    console.log(`  ├─ Titre ${idx + 1}: ${match[1].substring(0, 50)}...`);
                 }
             });
 
-            console.log(`📝 Textes à traduire: ${texts.length} (titres + descriptions)`);
+            // Extraire les descriptions (p avec color: #374151 et font-size: 15px)
+            const allParagraphs = doc.querySelectorAll('p');
+            let descCount = 0;
+
+            allParagraphs.forEach((p, idx) => {
+                const style = p.getAttribute('style') || '';
+                const text = p.textContent.trim();
+
+                if (style.includes('color: #374151') &&
+                    style.includes('font-size: 15px') &&
+                    text &&
+                    text.length > 20 &&
+                    !text.startsWith('📅') &&
+                    !text.startsWith('📎') &&
+                    !text.startsWith('💡')) {
+                    texts.push(text);
+                    descCount++;
+                    console.log(`  ├─ Description ${descCount}: ${text.substring(0, 50)}...`);
+                }
+            });
+
+            console.log(`📝 Total textes à traduire: ${texts.length} (${titleLinks.length} titres + ${descCount} descriptions)`);
             return texts;
         }
 
         // Remplacer les titres ET descriptions traduits dans le HTML
         function replaceDescriptions(html, translations) {
+            console.log(`🔧 Début remplacement - ${translations.length} traductions disponibles`);
+
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
 
             let translationIndex = 0;
-            const allElements = doc.querySelectorAll('*');
 
-            allElements.forEach(el => {
-                // Remplacer les titres (h2 > a)
-                if (el.tagName === 'H2') {
-                    const link = el.querySelector('a[style*="color: #1e40af"]');
-                    if (link && translationIndex < translations.length) {
-                        const text = link.textContent.trim();
-                        const match = text.match(/^([🔥⚡📰📌]\s*)(.+)$/);
+            // Remplacer les titres (h2 > a avec color: #1e40af)
+            const titleLinks = doc.querySelectorAll('h2 a[style*="color: #1e40af"]');
+            console.log(`🔍 Remplacement titres: ${titleLinks.length} trouvés`);
 
-                        if (match) {
-                            const translation = translations[translationIndex];
-                            if (translation.wasTranslated) {
-                                // Conserver l'emoji, remplacer le texte
-                                link.textContent = match[1] + translation.translated;
-                                console.log(`✅ Titre traduit [${translationIndex}]: ${match[2].substring(0, 40)}... → ${translation.translated.substring(0, 40)}...`);
-                            }
-                            translationIndex++;
-                        }
-                    }
-                }
+            titleLinks.forEach((link, idx) => {
+                if (translationIndex < translations.length) {
+                    const text = link.textContent.trim();
+                    const match = text.match(/^([🔥⚡📰📌]\s*)(.+)$/);
 
-                // Remplacer les descriptions (p)
-                if (el.tagName === 'P') {
-                    const style = el.getAttribute('style') || '';
-                    const text = el.textContent.trim();
-
-                    if (style.includes('color: #374151') &&
-                        style.includes('font-size: 15px') &&
-                        text &&
-                        text.length > 20 &&
-                        !text.startsWith('📅') &&
-                        !text.startsWith('📎') &&
-                        !text.startsWith('💡') &&
-                        translationIndex < translations.length) {
-
+                    if (match) {
                         const translation = translations[translationIndex];
                         if (translation.wasTranslated) {
-                            el.textContent = translation.translated;
-                            console.log(`✅ Description traduite [${translationIndex}]: ${text.substring(0, 40)}... → ${translation.translated.substring(0, 40)}...`);
+                            // Conserver l'emoji, remplacer le texte
+                            link.textContent = match[1] + translation.translated;
+                            console.log(`  ✅ Titre ${idx + 1} traduit: "${match[2].substring(0, 30)}..." → "${translation.translated.substring(0, 30)}..."`);
+                        } else {
+                            console.log(`  ⏭️ Titre ${idx + 1} non traduit (déjà dans langue cible)`);
                         }
                         translationIndex++;
                     }
                 }
             });
 
-            console.log(`🔄 ${translationIndex} textes traités sur ${translations.length} reçues`);
+            // Remplacer les descriptions (p avec color: #374151 et font-size: 15px)
+            const allParagraphs = doc.querySelectorAll('p');
+            let descCount = 0;
+
+            allParagraphs.forEach((p) => {
+                const style = p.getAttribute('style') || '';
+                const text = p.textContent.trim();
+
+                if (style.includes('color: #374151') &&
+                    style.includes('font-size: 15px') &&
+                    text &&
+                    text.length > 20 &&
+                    !text.startsWith('📅') &&
+                    !text.startsWith('📎') &&
+                    !text.startsWith('💡') &&
+                    translationIndex < translations.length) {
+
+                    const translation = translations[translationIndex];
+                    descCount++;
+
+                    if (translation.wasTranslated) {
+                        p.textContent = translation.translated;
+                        console.log(`  ✅ Desc ${descCount} traduite: "${text.substring(0, 30)}..." → "${translation.translated.substring(0, 30)}..."`);
+                    } else {
+                        console.log(`  ⏭️ Desc ${descCount} non traduite (déjà dans langue cible)`);
+                    }
+                    translationIndex++;
+                }
+            });
+
+            console.log(`🔄 Total traité: ${translationIndex}/${translations.length} traductions`);
 
             // Retourner le contenu du body (pas le document complet)
             const translatedHTML = doc.body.innerHTML;
 
-            console.log(`🔄 HTML traduit généré (${translatedHTML.length} caractères)`);
+            console.log(`✨ HTML traduit généré: ${translatedHTML.length} caractères (original: ${html.length})`);
             return translatedHTML;
         }
 
@@ -1537,6 +1559,16 @@
         // FIN GESTION DE LA TRADUCTION
         // ==========================================
 
+        // Mettre à jour le texte du bouton selon le provider choisi
+        emailProvider.addEventListener('change', () => {
+            const provider = emailProvider.value;
+            if (provider === 'gmail') {
+                emailBtnText.textContent = 'Ouvrir Gmail';
+            } else if (provider === 'outlook') {
+                emailBtnText.textContent = 'Ouvrir Outlook';
+            }
+        });
+
         // Envoyer par email - Ouvrir modal
         sendEmailBtn.addEventListener('click', () => {
             emailModal.classList.add('active');
@@ -1558,10 +1590,11 @@
             }
         });
 
-        // Confirmer et ouvrir Gmail
+        // Confirmer et ouvrir le client email
         confirmEmailBtn.addEventListener('click', async () => {
             const to = emailTo.value.trim();
             const subject = emailSubject.value.trim() || `Newsletter - ${currentTheme}`;
+            const provider = emailProvider.value;
 
             // Copier le contenu RENDU (pas le code HTML brut)
             try {
@@ -1584,25 +1617,35 @@
                 // Désélectionner
                 selection.removeAllRanges();
 
-                // Construire l'URL Gmail
-                let gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1';
-                gmailUrl += `&su=${encodeURIComponent(subject)}`;
+                // Construire l'URL selon le provider
+                let emailUrl;
+                const providerName = provider === 'gmail' ? 'Gmail' : 'Outlook';
 
-                if (to) {
-                    gmailUrl += `&to=${encodeURIComponent(to)}`;
+                if (provider === 'gmail') {
+                    emailUrl = 'https://mail.google.com/mail/?view=cm&fs=1';
+                    emailUrl += `&su=${encodeURIComponent(subject)}`;
+                    if (to) {
+                        emailUrl += `&to=${encodeURIComponent(to)}`;
+                    }
+                } else if (provider === 'outlook') {
+                    emailUrl = 'https://outlook.live.com/mail/0/deeplink/compose';
+                    emailUrl += `?subject=${encodeURIComponent(subject)}`;
+                    if (to) {
+                        emailUrl += `&to=${encodeURIComponent(to)}`;
+                    }
                 }
 
-                // Ouvrir Gmail
-                window.open(gmailUrl, '_blank');
+                // Ouvrir le client email
+                window.open(emailUrl, '_blank');
 
                 // Informer l'utilisateur
                 emailModal.classList.remove('active');
-                alert('✅ Newsletter copiée et Gmail ouvert !\n\n📋 Le contenu formaté a été copié dans votre presse-papiers.\n\n💡 Dans Gmail:\n1. Cliquez dans le corps de l\'email\n2. Collez (Ctrl+V ou Cmd+V)\n3. Le format sera préservé automatiquement !\n4. Ajoutez ou modifiez les destinataires si besoin\n5. Envoyez !');
+                alert(`✅ Newsletter copiée et ${providerName} ouvert !\n\n📋 Le contenu formaté a été copié dans votre presse-papiers.\n\n💡 Dans ${providerName}:\n1. Cliquez dans le corps de l'email\n2. Collez (Ctrl+V ou Cmd+V)\n3. Le format sera préservé automatiquement !\n4. Ajoutez ou modifiez les destinataires si besoin\n5. Envoyez !`);
             } catch (err) {
                 console.error('Erreur copie:', err);
                 // Fallback : copier le code HTML brut
                 await navigator.clipboard.writeText(currentNewsletter);
-                alert('⚠️ Newsletter copiée (mode texte)\n\nPour un meilleur résultat :\n1. Utilisez le bouton "Aperçu"\n2. Sélectionnez tout (Ctrl+A)\n3. Copiez (Ctrl+C)\n4. Collez dans Gmail');
+                alert(`⚠️ Newsletter copiée (mode texte)\n\nPour un meilleur résultat :\n1. Utilisez le bouton "Aperçu"\n2. Sélectionnez tout (Ctrl+A)\n3. Copiez (Ctrl+C)\n4. Collez dans ${provider === 'gmail' ? 'Gmail' : 'Outlook'}`);
             }
         });
     </script>

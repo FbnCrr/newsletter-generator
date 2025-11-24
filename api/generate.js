@@ -298,7 +298,13 @@ function generateNewsletterHTML(theme, enrichedNews, enrichedResults, period, in
           </tr>`;
   });
 
-  // POUR ALLER PLUS LOIN
+  // POUR ALLER PLUS LOIN (uniquement les articles NON affichés dans les actualités principales)
+  // Créer un Set des URLs déjà affichées
+  const displayedUrls = new Set(enrichedNews.map(a => a.url));
+
+  // Filtrer les ressources supplémentaires pour exclure celles déjà affichées
+  const uniqueAdditionalResources = enrichedResults.filter(article => !displayedUrls.has(article.url));
+
   html += `
           <!-- POUR ALLER PLUS LOIN -->
           <tr>
@@ -308,7 +314,7 @@ function generateNewsletterHTML(theme, enrichedNews, enrichedResults, period, in
               </h2>
               <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 14px; line-height: 1.8;">`;
 
-  enrichedResults.slice(0, 12).forEach((article) => {
+  uniqueAdditionalResources.slice(0, 12).forEach((article) => {
     html += `
                 <li><a href="${article.url}" style="color: #2563eb; text-decoration: none;">${article.title}</a> <span style="color: #9ca3af;">(${article.source})</span></li>`;
   });
