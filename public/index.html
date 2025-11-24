@@ -1529,6 +1529,15 @@
 
                 console.log('✅ Traduction réussie:', data);
 
+                // Logs détaillés des résultats de traduction
+                console.log(`📊 Analyse des traductions reçues:`);
+                data.results.forEach((r, i) => {
+                    console.log(`  [${i + 1}] wasTranslated=${r.wasTranslated}`);
+                    console.log(`      Original: "${r.original.substring(0, 50)}..."`);
+                    console.log(`      Traduit:  "${r.translated.substring(0, 50)}..."`);
+                    console.log(`      Identique: ${r.original === r.translated}`);
+                });
+
                 // Remplacer dans le HTML
                 console.log(`🔄 Remplacement des descriptions...`);
                 currentNewsletter = replaceDescriptions(currentNewsletter, data.results);
