@@ -217,11 +217,11 @@ async function enrichArticleWithAI(article, theme, anthropicApiKey) {
 // PARTIE 4: GÉNÉRATION HTML
 // ==========================================
 
-function generateNewsletterHTML(theme, enrichedNews, enrichedResults, period, intentType) {
-  const date = new Date().toLocaleDateString('fr-FR', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+function generateNewsletterHTML(theme, enrichedNews, enrichedResults, period, intentType, totalResources = enrichedResults.length) {
+  const date = new Date().toLocaleDateString('fr-FR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   });
 
   let periodTitle = period ? ` - ${period}` : ` - ${date}`;
@@ -323,7 +323,7 @@ function generateNewsletterHTML(theme, enrichedNews, enrichedResults, period, in
             <td style="padding: 0 40px 40px 40px;">
               <div style="background-color: #eff6ff; border-radius: 8px; padding: 20px; border-left: 4px solid #2563eb;">
                 <p style="margin: 0; color: #1e40af; font-size: 15px; line-height: 1.6;">
-                  💡 <strong>En résumé :</strong> Cette newsletter a compilé <strong>${enrichedResults.length} sources</strong> sur ${theme}. Les informations présentées offrent une vue d'ensemble complète des développements récents et des tendances émergentes dans ce domaine.
+                  💡 <strong>En résumé :</strong> Cette newsletter a compilé <strong>${totalResources} sources</strong> sur ${theme}. Les informations présentées offrent une vue d'ensemble complète des développements récents et des tendances émergentes dans ce domaine.
                 </p>
               </div>
             </td>
@@ -336,7 +336,7 @@ function generateNewsletterHTML(theme, enrichedNews, enrichedResults, period, in
                 Newsletter générée automatiquement • ${theme} • ${date}
               </p>
               <p style="margin: 8px 0 0 0; color: #9ca3af; font-size: 12px;">
-                Propulsé par Brave Search API • ${enrichedResults.length} sources analysées
+                Propulsé par Brave Search API • ${totalResources} sources analysées
               </p>
             </td>
           </tr>
@@ -497,18 +497,22 @@ export default async function handler(req, res) {
     // Prendre les 10 meilleurs résultats pour affichage principal
     const enrichedNews = enrichedArticles.slice(0, 10);
 
-    // Tous les résultats pour "Pour aller plus loin"
-    const enrichedResults = enrichedArticles;
+    // Ressources supplémentaires pour "Pour aller plus loin" (exclure les 10 déjà affichés)
+    const additionalResources = enrichedArticles.slice(10);
 
-    console.log(`📰 ${enrichedNews.length} articles à afficher | ${enrichedResults.length} résultats totaux`);
+    // Total pour les statistiques
+    const totalResources = enrichedArticles.length;
+
+    console.log(`📰 ${enrichedNews.length} articles à afficher | ${additionalResources.length} ressources supplémentaires | ${totalResources} résultats totaux`);
 
     // GÉNÉRER LA NEWSLETTER
     const newsletterHTML = generateNewsletterHTML(
-      theme, 
-      enrichedNews, 
-      enrichedResults, 
+      theme,
+      enrichedNews,
+      additionalResources,  // Ressources supplémentaires uniquement
       period,
-      intentType
+      intentType,
+      totalResources  // Total pour les statistiques
     );
 
     return res.status(200).json({
@@ -517,8 +521,9 @@ export default async function handler(req, res) {
       theme,
       period: period || 'récent',
       intentType,
-      resultsCount: enrichedResults.length,
+      resultsCount: totalResources,
       newsCount: enrichedNews.length,
+      additionalCount: additionalResources.length,
       aiSummariesUsed: !!ANTHROPIC_API_KEY,
       format: 'html'
     });

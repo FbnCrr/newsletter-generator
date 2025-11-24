@@ -1351,78 +1351,108 @@
             translateBar.style.display = 'none';
         });
 
-        // Extraire les descriptions des articles depuis le HTML
+        // Extraire les titres ET descriptions des articles depuis le HTML
         function extractArticleDescriptions(html) {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
 
-            const descriptions = [];
-            const paragraphs = doc.querySelectorAll('p');
+            const texts = [];
+            const allElements = doc.querySelectorAll('*');
 
-            paragraphs.forEach(p => {
-                const style = p.getAttribute('style') || '';
-                const text = p.textContent.trim();
+            allElements.forEach(el => {
+                // Extraire les titres (h2 > a)
+                if (el.tagName === 'H2') {
+                    const link = el.querySelector('a[style*="color: #1e40af"]');
+                    if (link) {
+                        const text = link.textContent.trim();
+                        // Enlever l'emoji au début (🔥, ⚡, 📰, 📌)
+                        const match = text.match(/^[🔥⚡📰📌]\s*(.+)$/);
+                        if (match && match[1]) {
+                            texts.push(match[1]);
+                        }
+                    }
+                }
 
-                // Chercher les paragraphes de description (color: #374151 et font-size: 15px)
-                if (style.includes('color: #374151') &&
-                    style.includes('font-size: 15px') &&
-                    text &&
-                    text.length > 20 &&
-                    !text.startsWith('📅') &&
-                    !text.startsWith('📎') &&
-                    !text.startsWith('💡')) {
-                    descriptions.push(text);
+                // Extraire les descriptions (p)
+                if (el.tagName === 'P') {
+                    const style = el.getAttribute('style') || '';
+                    const text = el.textContent.trim();
+
+                    if (style.includes('color: #374151') &&
+                        style.includes('font-size: 15px') &&
+                        text &&
+                        text.length > 20 &&
+                        !text.startsWith('📅') &&
+                        !text.startsWith('📎') &&
+                        !text.startsWith('💡')) {
+                        texts.push(text);
+                    }
                 }
             });
 
-            console.log(`📝 Descriptions extraites: ${descriptions.length}`);
-            return descriptions;
+            console.log(`📝 Textes à traduire: ${texts.length} (titres + descriptions)`);
+            return texts;
         }
 
-        // Remplacer les descriptions traduites dans le HTML (méthode robuste)
+        // Remplacer les titres ET descriptions traduits dans le HTML
         function replaceDescriptions(html, translations) {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
 
-            const paragraphs = doc.querySelectorAll('p');
             let translationIndex = 0;
+            const allElements = doc.querySelectorAll('*');
 
-            paragraphs.forEach(p => {
-                const style = p.getAttribute('style') || '';
-                const text = p.textContent.trim();
+            allElements.forEach(el => {
+                // Remplacer les titres (h2 > a)
+                if (el.tagName === 'H2') {
+                    const link = el.querySelector('a[style*="color: #1e40af"]');
+                    if (link && translationIndex < translations.length) {
+                        const text = link.textContent.trim();
+                        const match = text.match(/^([🔥⚡📰📌]\s*)(.+)$/);
 
-                // Même logique que extractArticleDescriptions
-                if (style.includes('color: #374151') &&
-                    style.includes('font-size: 15px') &&
-                    text &&
-                    text.length > 20 &&
-                    !text.startsWith('📅') &&
-                    !text.startsWith('📎') &&
-                    !text.startsWith('💡')) {
-
-                    if (translationIndex < translations.length) {
-                        const translation = translations[translationIndex];
-
-                        // Remplacer le contenu du paragraphe
-                        if (translation.wasTranslated) {
-                            p.textContent = translation.translated;
-                            console.log(`✅ Traduit [${translationIndex}]: ${text.substring(0, 50)}... → ${translation.translated.substring(0, 50)}...`);
-                        } else {
-                            console.log(`⏭️ Ignoré [${translationIndex}]: Déjà dans la langue cible`);
+                        if (match) {
+                            const translation = translations[translationIndex];
+                            if (translation.wasTranslated) {
+                                // Conserver l'emoji, remplacer le texte
+                                link.textContent = match[1] + translation.translated;
+                                console.log(`✅ Titre traduit [${translationIndex}]: ${match[2].substring(0, 40)}... → ${translation.translated.substring(0, 40)}...`);
+                            }
+                            translationIndex++;
                         }
+                    }
+                }
 
+                // Remplacer les descriptions (p)
+                if (el.tagName === 'P') {
+                    const style = el.getAttribute('style') || '';
+                    const text = el.textContent.trim();
+
+                    if (style.includes('color: #374151') &&
+                        style.includes('font-size: 15px') &&
+                        text &&
+                        text.length > 20 &&
+                        !text.startsWith('📅') &&
+                        !text.startsWith('📎') &&
+                        !text.startsWith('💡') &&
+                        translationIndex < translations.length) {
+
+                        const translation = translations[translationIndex];
+                        if (translation.wasTranslated) {
+                            el.textContent = translation.translated;
+                            console.log(`✅ Description traduite [${translationIndex}]: ${text.substring(0, 40)}... → ${translation.translated.substring(0, 40)}...`);
+                        }
                         translationIndex++;
                     }
                 }
             });
 
-            // IMPORTANT : Retourner le HTML complet avec <!DOCTYPE>, <html>, etc.
-            // Utiliser XMLSerializer pour conserver la structure complète
-            const serializer = new XMLSerializer();
-            const fullHTML = serializer.serializeToString(doc);
+            console.log(`🔄 ${translationIndex} textes traités sur ${translations.length} reçues`);
 
-            console.log(`🔄 HTML traduit généré (${fullHTML.length} caractères)`);
-            return fullHTML;
+            // Retourner le contenu du body (pas le document complet)
+            const translatedHTML = doc.body.innerHTML;
+
+            console.log(`🔄 HTML traduit généré (${translatedHTML.length} caractères)`);
+            return translatedHTML;
         }
 
         // Confirmer traduction
