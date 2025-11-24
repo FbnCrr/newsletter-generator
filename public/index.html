@@ -1416,8 +1416,13 @@
                 }
             });
 
-            // Retourner seulement le contenu body (pas tout le document)
-            return doc.body.innerHTML;
+            // IMPORTANT : Retourner le HTML complet avec <!DOCTYPE>, <html>, etc.
+            // Utiliser XMLSerializer pour conserver la structure complète
+            const serializer = new XMLSerializer();
+            const fullHTML = serializer.serializeToString(doc);
+
+            console.log(`🔄 HTML traduit généré (${fullHTML.length} caractères)`);
+            return fullHTML;
         }
 
         // Confirmer traduction

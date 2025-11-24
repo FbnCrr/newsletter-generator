@@ -270,10 +270,10 @@ function generateNewsletterHTML(theme, enrichedNews, enrichedResults, period, in
             </td>
           </tr>`;
 
-  // ACTUALITÉS PRINCIPALES
-  const articlesToShow = enrichedNews.length > 0 ? enrichedNews : enrichedResults.slice(0, 10);
+  // ACTUALITÉS PRINCIPALES (on affiche directement enrichedNews qui contient déjà 10 articles max)
+  const articlesToShow = enrichedNews;
 
-  articlesToShow.slice(0, 10).forEach((article, index) => {
+  articlesToShow.forEach((article, index) => {
     const emoji = index === 0 ? '🔥' : index === 1 ? '⚡' : index === 2 ? '📰' : '📌';
     const imageUrl = article.thumbnail || `https://via.placeholder.com/540x300/2563eb/ffffff?text=${encodeURIComponent(theme)}`;
 
@@ -487,20 +487,20 @@ export default async function handler(req, res) {
     // ENRICHIR AVEC RÉSUMÉS IA (si clé disponible)
     console.log(`🤖 Enrichissement des articles${ANTHROPIC_API_KEY ? ' avec IA' : ''}...`);
     const enrichedArticles = [];
-    
-    for (const article of uniqueResults.slice(0, 15)) {
+
+    // Enrichir jusqu'à 20 articles pour s'assurer d'avoir au moins 10 bons résultats
+    for (const article of uniqueResults.slice(0, 20)) {
       const enriched = await enrichArticleWithAI(article, theme, ANTHROPIC_API_KEY);
       enrichedArticles.push(enriched);
     }
 
-    // Séparer actualités et résultats généraux
-    const enrichedNews = enrichedArticles.filter(a =>
-      newsResults.some(n => n.url === a.url)
-    ).slice(0, 10);  // Maximum 10 actualités pour thème unique
+    // Prendre les 10 meilleurs résultats pour affichage principal
+    const enrichedNews = enrichedArticles.slice(0, 10);
 
+    // Tous les résultats pour "Pour aller plus loin"
     const enrichedResults = enrichedArticles;
 
-    console.log(`📰 ${enrichedNews.length} actualités | ${enrichedResults.length} résultats totaux`);
+    console.log(`📰 ${enrichedNews.length} articles à afficher | ${enrichedResults.length} résultats totaux`);
 
     // GÉNÉRER LA NEWSLETTER
     const newsletterHTML = generateNewsletterHTML(
